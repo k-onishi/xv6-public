@@ -8,7 +8,7 @@
 # BIOSはハードディスク上の先頭セクタにあるこのコードを物理アドレスの0x7c00に読み込み
 # %cs=0, %ip=7c00でCPUのリアルモードから実行を開始する。
 
-.code16                       # 16-bit mode
+.code16                       # 16-bitのアセンブリ命令を出力する
 .globl start
 start:
   cli                         # 割り込みを禁する
@@ -47,22 +47,22 @@ seta20.2:
   orl     $CR0_PE, %eax # bit0をセットしプロテクトモードを有効化
   movl    %eax, %cr0 # コントロールレジスタ0の値をセット
 
-//PAGEBREAK!
-  # Complete the transition to 32-bit protected mode by using a long jmp
-  # to reload %cs and %eip.  The segment descriptors are set up with no
-  # translation, so that the mapping is still the identity mapping.
+  # ロングジャンプ(long jmp)を用いて%cs及び%eipをリロードし、32bitのプロテクトモードへの移行が完了する。
+  # セグメントディスクリプタは置き換え無しにセットアップされるため、マッピングは変化しない
+  # about "ljmp" opecode : https://docs.oracle.com/cd/E19455-01/806-3773/instructionset-73/index.html
+  # ljmp $value_for_cs, $value_for_eip
   ljmp    $(SEG_KCODE<<3), $start32
 
-.code32  # Tell assembler to generate 32-bit code now.
+.code32  # 32-bitのアセンブリ命令を出力する
 start32:
-  # Set up the protected-mode data segment registers
-  movw    $(SEG_KDATA<<3), %ax    # Our data segment selector
-  movw    %ax, %ds                # -> DS: Data Segment
-  movw    %ax, %es                # -> ES: Extra Segment
-  movw    %ax, %ss                # -> SS: Stack Segment
+  # プロテクトモード用のデータセグメントレジスタをセットアップ
+  movw    $(SEG_KDATA<<3), %ax    # データセグメントレジスタ
+  movw    %ax, %ds                # -> DS: データセグメント
+  movw    %ax, %es                # -> ES: エクストラセグメント
+  movw    %ax, %ss                # -> SS: スタックセグメント
   movw    $0, %ax                 # Zero segments not ready for use
-  movw    %ax, %fs                # -> FS
-  movw    %ax, %gs                # -> GS
+  movw    %ax, %fs                # -> FS: エクストラセグメント
+  movw    %ax, %gs                # -> GS: エクストラセグメント
 
   # Set up the stack pointer and call into C.
   movl    $start, %esp
