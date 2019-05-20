@@ -10,7 +10,7 @@
 #include "x86.h"
 #include "memlayout.h"
 
-#define SECTSIZE  512
+#define SECTSIZE  512 // セクタのサイズ
 
 void readseg(uchar*, uint, uint);
 
@@ -47,50 +47,59 @@ bootmain(void)
   entry();
 }
 
+// 命令の送受信が可能になるまで待機する(これを待たないとハングアップする可能性がある)
 void
 waitdisk(void)
 {
-  // Wait for disk ready.
-  while((inb(0x1F7) & 0xC0) != 0x40)
-    ;
+  // https://wiki.osdev.org/ATA_PIO_Mode#Primary.2FSecondary_Bus
+  // 0x1F7: Status Register
+  // - 0	ERR	Indicates an error occurred. Send a new command to clear it (or nuke it with a Software Reset).
+  // - 1	IDX	Index. Always set to zero.
+  // - 2	CORR	Corrected data. Always set to zero.
+  // - 3	DRQ	Set when the drive has PIO data to transfer, or is ready to accept PIO data.
+  // - 4	SRV	Overlapped Mode Service Request.
+  // - 5	DF	Drive Fault Error (does not set ERR).
+  // - 6	RDY	Bit is clear when drive is spun down, or after an error. Set otherwise.
+  // - 7	BSY	Indicates the drive is preparing to send/receive data (wait for it to clear). In case of 'hang' (it never clears), do a software reset.
+  //
+  // 0xC0: 命令の送受信が可能どうか。
+  while((inb(0x1F7) & 0xC0) != 0x40);
 }
 
-// Read a single sector at offset into dst.
+// offsetで指定したセクタを読み込みdstに書き込む
 void
 readsect(void *dst, uint offset)
 {
-  // Issue command.
-  waitdisk();
-  outb(0x1F2, 1);   // count = 1
-  outb(0x1F3, offset);
+  // x86 Directions - 28 bit PIO :https://wiki.osdev.org/ATA_PIO_Mode#Primary.2FSecondary_Bus#x86_Directions
+  waitdisk(); // 命令の送受信可能になるまで待つ
+  outb(0x1F2, 1);   // セクタの数
+  outb(0x1F3, offset); 
   outb(0x1F4, offset >> 8);
   outb(0x1F5, offset >> 16);
   outb(0x1F6, (offset >> 24) | 0xE0);
   outb(0x1F7, 0x20);  // cmd 0x20 - read sectors
 
   // Read data.
-  waitdisk();
+  waitdisk(); // 命令の送受信可能になるまで待つ
   insl(0x1F0, dst, SECTSIZE/4);
 }
 
-// Read 'count' bytes at 'offset' from kernel into physical address 'pa'.
-// Might copy more than asked.
+// オフセット("offset")で指定したセクタから"count"バイト分のデータを読み込み、指定の物理アドレス"pa"に書き込む。
+// おそらく指定したよりも多くの読み込みが発生する。
 void
 readseg(uchar* pa, uint count, uint offset)
 {
   uchar* epa;
-
   epa = pa + count;
 
-  // Round down to sector boundary.
+  // セクタ境界で丸める
   pa -= offset % SECTSIZE;
 
-  // Translate from bytes to sectors; kernel starts at sector 1.
+  // オフセットをバイトからセクタサイズの単位へ変換(カーネルはセクタ"1"から始まる)
   offset = (offset / SECTSIZE) + 1;
 
-  // If this is too slow, we could read lots of sectors at a time.
-  // We'd write more to memory than asked, but it doesn't matter --
-  // we load in increasing order.
+  // もしこの操作が遅い場合、一度の書き込みで多くの読み込みを行なっているかもしれない
+  // 指定したよりも多く書き込むがコレは重要ではない。ロードは昇順で行う。
   for(; pa < epa; pa += SECTSIZE, offset++)
     readsect(pa, offset);
 }

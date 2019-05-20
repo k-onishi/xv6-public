@@ -2,12 +2,9 @@
 #include "memlayout.h"
 #include "mmu.h"
 
-# test
-
 # CPUを起動後、32bitのプロテクトモードに遷移しC言語のコードに飛ぶ。
 # BIOSはハードディスク上の先頭セクタにあるこのコードを物理アドレスの0x7c00に読み込み
 # %cs=0, %ip=7c00でCPUのリアルモードから実行を開始する。
-
 .code16                       # 16-bitのアセンブリ命令を出力する
 .globl start
 start:
@@ -19,10 +16,11 @@ start:
   movw    %ax,%es             # エクストラセグメント
   movw    %ax,%ss             # スタックセグメント
 
-  # Physical address line A20 is tied to zero so that the first PCs 
   # with 2 MB would run software that assumed 1 MB.  Undo that.
+  # 物理アドレスライン"A20"(アドレスバスの20本目以降をマスクするかどうかのフラグ)
+  # は0に設定されている。
   # https://en.wikipedia.org/wiki/A20_line
-  # http://softwaretechnique.jp/OS_Development/kernel_development10.html
+  # https://en.wikipedia.org/wiki/A20_line
 seta20.1:
   inb     $0x64,%al               # Wait for not busy
   testb   $0x2,%al
@@ -64,28 +62,31 @@ start32:
   movw    %ax, %fs                # -> FS: エクストラセグメント
   movw    %ax, %gs                # -> GS: エクストラセグメント
 
-  # Set up the stack pointer and call into C.
+  # スタックポインタを設定しCのコードにとぶ。
   movl    $start, %esp
-  call    bootmain
+  call    bootmain # bootmain()関数へ
 
-  # If bootmain returns (it shouldn't), trigger a Bochs
-  # breakpoint if running under Bochs, then loop.
-  movw    $0x8a00, %ax            # 0x8a00 -> port 0x8a00
-  movw    %ax, %dx
-  outw    %ax, %dx
-  movw    $0x8ae0, %ax            # 0x8ae0 -> port 0x8a00
-  outw    %ax, %dx
-spin:
+  # もしbootmain()関数からリターンした場合は(すべきでないが), 
+  # Bochsで動作している場合にはブレイクポイントを起動後、ループに入る
+  # Bochs = a highly portable open source IA-32 (x86) PC emulator written in C++.(http://bochs.sourceforge.net/)
+  # http://bochs.sourceforge.net/doc/docbook/development/debugger-advanced.html
+  movw    $0x8a00, %ax            # port 0x8a00: command register. 
+  movw    %ax, %dx                
+  outw    %ax, %dx                # write "0x8a00" -> port:0x8a00 = Used to enable the device.
+  movw    $0x8ae0, %ax            
+  outw    %ax, %dx                # write "0x8ae0" -> port:0x8a00 = Return to Debugger Prompt
+spin: # 無限ループ
   jmp     spin
 
-# Bootstrap GDT
-.p2align 2                                # force 4 byte alignment
+# 起動用のグローバルディスクリプタテーブル
+.p2align 2                                # 4バイトアライメントを強制
 gdt:
-  SEG_NULLASM                             # null seg
-  SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)   # code seg
-  SEG_ASM(STA_W, 0x0, 0xffffffff)         # data seg
+  SEG_NULLASM                             # NULLセグメント
+  SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)   # コードセグメント(実行及び読み込み可能)。"0x0"から始まり、リミットは4GB(0xFFFFFFFF)(32bitモードで指定可能な最大のサイズ)
+  SEG_ASM(STA_W, 0x0, 0xffffffff)         # データセグメント(書き込み可能)。"0x0"から始まり、リミットは4GB(0xFFFFFFFF)(32bitモードで指定可能な最大のサイズ)
 
-gdtdesc:
-  .word   (gdtdesc - gdt - 1)             # sizeof(gdt) - 1
-  .long   gdt                             # address gdt
+# セグメントディスクリプタ
+gdtdesc: # 
+  .word   (gdtdesc - gdt - 1)             # グローバルディスクリプタテーブル(GDT)のサイズ - 1 (2バイト)
+  .long   gdt                             # グローバルディスクリプタテーブル(gdt)のアドレス (4バイト)
 
