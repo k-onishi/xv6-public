@@ -9,9 +9,20 @@ inb(ushort port)
   return data;
 }
 
+/**
+ * 指定したI/Oポートから指定したアドレスにセクタのデータを読み込む
+ */
 static inline void
 insl(int port, void *addr, int cnt)
 {
+  // cld(clear direction flag)命令: (http://caspar.hazymoon.jp/OpenBSD/annex/intel_arc.html)
+  // Direction Flagをクリア("0")する事で指定アドレスから昇順にデータを読み込む("1"の場合は降順)
+  
+  // rep(repeat)命令
+  // "rep"は命令修飾子で後に続く命令をecxレジスタ値の回数繰り返し実行する(今回の場合はinsl命令が対象)
+  
+  // in, ins(input from port)命令(今回はinsl(ins long)のため一度に32bit読み込む)
+  // edxレジスタで指定したI/Oポートからediレジスタで指定したアドレスの始点にecxレジスタ値の回数分データを読み込む
   asm volatile("cld; rep insl" :
                "=D" (addr), "=c" (cnt) :
                "d" (port), "0" (addr), "1" (cnt) :
@@ -39,9 +50,11 @@ outsl(int port, const void *addr, int cnt)
                "cc");
 }
 
+// 指定アドレスを始点に指定したデータを指定回数バイト分、1バイトずつ設定する
 static inline void
 stosb(void *addr, int data, int cnt)
 {
+  // stosb(store string byte)命令: alレジスタの値をdiレジスタで指定したアドレスを始点にecxレジスタ値の回数、始点から1バイトずつ設定する
   asm volatile("cld; rep stosb" :
                "=D" (addr), "=c" (cnt) :
                "0" (addr), "1" (cnt), "a" (data) :

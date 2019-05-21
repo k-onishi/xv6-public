@@ -16,9 +16,8 @@ start:
   movw    %ax,%es             # エクストラセグメント
   movw    %ax,%ss             # スタックセグメント
 
-  # with 2 MB would run software that assumed 1 MB.  Undo that.
   # 物理アドレスライン"A20"(アドレスバスの20本目以降をマスクするかどうかのフラグ)
-  # は0に設定されている。
+  # はデフォルトでクリアされている。
   # https://en.wikipedia.org/wiki/A20_line
   # https://en.wikipedia.org/wiki/A20_line
 seta20.1:
