@@ -1,9 +1,8 @@
-// Boot loader.
-//
-// Part of the boot block, along with bootasm.S, which calls bootmain().
-// bootasm.S has put the processor into protected 32-bit mode.
-// bootmain() loads an ELF kernel image from the disk starting at
-// sector 1 and then jumps to the kernel entry routine.
+// ブートローダ
+// これはブートブロックの一部でbootmain()関数のを呼び出すbootasm.Sから続いている。
+// bootasm.Sはプロセッサを32bitのプロテクトモードへの切り替える。
+// bootmain()はディスクのセクタ"1"から始まるELFフォーマットのカーネルイメージを
+// 読み込み、カーネルのエントリポイントへジャンプする
 
 #include "types.h"
 #include "elf.h"
@@ -22,10 +21,10 @@ bootmain(void)
   void (*entry)(void);
   uchar* pa;
 
-  // 0x10000にカーネルを読み込む
-  elf = (struct elfhdr*)0x10000;  // scratch space
+  // 0x10000をELFヘッダの先頭にする
+  elf = (struct elfhdr*)0x10000;
 
-  // 先頭セクタから4KB読み込む
+  // 先頭セクタから4KB(カーネル)読み込む
   readseg((uchar*)elf, 4096, 0);
 
   // magicナンバーからELFフォーマットであるかを判定
@@ -48,7 +47,7 @@ bootmain(void)
 
   // ELFヘッダのエントリポイントから関数を読み込む
   entry = (void(*)(void))(elf->entry);
-  entry(); // ここへは戻ってこない
+  entry(); // entry.Sへ
 }
 
 // 命令の送受信が可能になるまで待機する(これを待たないとハングアップする可能性がある)
