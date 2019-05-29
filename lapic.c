@@ -41,7 +41,7 @@
 #define TCCR    (0x0390/4)   // Timer Current Count
 #define TDCR    (0x03E0/4)   // Timer Divide Configuration
 
-volatile uint *lapic;  // Initialized in mp.c
+volatile uint *lapic;  // ローカルAPICのアドレス
 
 //PAGEBREAK!
 static void

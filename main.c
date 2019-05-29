@@ -9,11 +9,12 @@
 static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));
 extern pde_t *kpgdir;
-extern char end[]; // first address after kernel loaded from ELF file
+extern char end[]; // ELFファイルからロードしたカーネルの後ろから続くアドレスの先頭
 
-// Bootstrap processor starts running C code here.
-// Allocate a real stack and switch to it, first
-// doing some setup required for memory allocator to work.
+// 起動用のプロセッサはC言語で記述されたコードをここから開始する。
+// 本当のスタックを割り当て、ここへ切り替えを行う。
+// 最初にメモリアロケータの動作に必要なセットアップを行う。
+
 int
 main(void)
 {

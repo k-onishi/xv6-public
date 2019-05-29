@@ -9,6 +9,8 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
+// ロック変数の初期化関数
 void
 initlock(struct spinlock *lk, char *name)
 {
@@ -17,14 +19,14 @@ initlock(struct spinlock *lk, char *name)
   lk->cpu = 0;
 }
 
-// Acquire the lock.
-// Loops (spins) until the lock is acquired.
-// Holding a lock for a long time may cause
-// other CPUs to waste time spinning to acquire it.
+// ロックを取得する
+// ロックが取得できるまでスピンロックして待機する
+// ロックを長時間保持すると他CPUがスピンロックによる
+// 時間の無駄が生じる可能性がある。
 void
 acquire(struct spinlock *lk)
 {
-  pushcli(); // disable interrupts to avoid deadlock.
+  pushcli(); // デッドロックを回避するため割り込みを禁止する
   if(holding(lk))
     panic("acquire");
 
@@ -85,7 +87,7 @@ getcallerpcs(void *v, uint pcs[])
     pcs[i] = 0;
 }
 
-// Check whether this cpu is holding the lock.
+// 当CPUがロックを保持しているかを確認する
 int
 holding(struct spinlock *lock)
 {
@@ -106,9 +108,9 @@ pushcli(void)
 {
   int eflags;
 
-  eflags = readeflags();
-  cli();
-  if(mycpu()->ncli == 0)
+  eflags = readeflags(); // EFLAGSレジスタの値を取得
+  cli(); // 割り込みの禁止
+  if(mycpu()->ncli == 0) // 割り込みが禁止されていない場合
     mycpu()->intena = eflags & FL_IF;
   mycpu()->ncli += 1;
 }

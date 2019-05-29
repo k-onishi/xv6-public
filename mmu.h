@@ -2,7 +2,7 @@
 // x86 memory management unit (MMU).
 
 // Eflags register
-#define FL_IF           0x00000200      // Interrupt Enable
+#define FL_IF           0x00000200      // 割り込み許可状態
 
 // Control Register flags
 #define CR0_PE          0x00000001      // Protection Enable
@@ -87,7 +87,7 @@ struct segdesc {
 #define PTXSHIFT        12      // offset of PTX in a linear address
 #define PDXSHIFT        22      // offset of PDX in a linear address
 
-#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
+#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1)) // ページサイズ以上にならないよう値を丸める
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
 
 // Page table/directory entry flags.

@@ -1,11 +1,10 @@
-// Mutual exclusion lock.
+// 排他制御用のロック構造体
 struct spinlock {
-  uint locked;       // Is the lock held?
+  uint locked;       // ロックされているか
 
   // For debugging:
-  char *name;        // Name of lock.
-  struct cpu *cpu;   // The cpu holding the lock.
-  uint pcs[10];      // The call stack (an array of program counters)
-                     // that locked the lock.
+  char *name;        // ロックの名前
+  struct cpu *cpu;   // ロックを保持しているCPU
+  uint pcs[10];      // ロックを取得している関数のコールスタック
 };
 

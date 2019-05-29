@@ -17,22 +17,23 @@ struct run {
   struct run *next;
 };
 
+// ロック変数 
 struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
 } kmem;
 
-// Initialization happens in two phases.
-// 1. main() calls kinit1() while still using entrypgdir to place just
-// the pages mapped by entrypgdir on free list.
-// 2. main() calls kinit2() with the rest of the physical pages
-// after installing a full page table that maps them on all cores.
+// 初期化は二段階で行われる。
+// 1) freelist上のentrypgdirによってマッピングされたページを配置するために
+// entrypgdirを使用しながらmain()がkinit1()を呼び出す。
+// 2) 全てのページテーブルをインストールした後に
+// main()が残りの物理ページを用いてkinit()を呼び出す。
 void
 kinit1(void *vstart, void *vend)
 {
-  initlock(&kmem.lock, "kmem");
-  kmem.use_lock = 0;
+  initlock(&kmem.lock, "kmem"); // kmemという名前でspinlock構造体を初期化
+  kmem.use_lock = 0; // ロックを使用するかどうか(しない)
   freerange(vstart, vend);
 }
 
@@ -47,27 +48,27 @@ void
 freerange(void *vstart, void *vend)
 {
   char *p;
-  p = (char*)PGROUNDUP((uint)vstart);
-  for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
-    kfree(p);
+  p = (char*)PGROUNDUP((uint)vstart); // ページサイズ以上にならないようにアドレス値を丸める
+  for(; p + PGSIZE <= (char*)vend; p += PGSIZE) // 指定された終点アドレスまでページサイズ単位で処理を繰り返す
+    kfree(p); // 
 }
-//PAGEBREAK: 21
-// Free the page of physical memory pointed at by v,
-// which normally should have been returned by a
-// call to kalloc().  (The exception is when
-// initializing the allocator; see kinit above.)
+
+// 指定の物理アドレスで指定されたページを解放する。
+// 通常はkalloc()の呼び出しにリターンするはずである。
+// 例外としてアロケータの起動がある。
 void
 kfree(char *v)
 {
   struct run *r;
 
+  // ページサイズ境界でアラインメントされていない || endよりも小さいアドレス || 許容されている物理メモリよりも大きい場合
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
+  // vを始点にページサイズ分を1で初期化する
   memset(v, 1, PGSIZE);
 
-  if(kmem.use_lock)
+  if(kmem.use_lock) // ロックを使用している
     acquire(&kmem.lock);
   r = (struct run*)v;
   r->next = kmem.freelist;

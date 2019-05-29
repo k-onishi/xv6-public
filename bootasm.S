@@ -8,7 +8,7 @@
 .code16                       # 16-bitのアセンブリ命令を出力する
 .globl start
 start:
-  cli                         # 割り込みを禁する
+  cli                         # 割り込みを禁止する
 
   # DS、ES及びSSデータセグメントレジスタをゼロで初期化
   xorw    %ax,%ax             # axにゼロを設定

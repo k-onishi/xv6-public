@@ -20,7 +20,7 @@ struct mpconf {         // configuration table header
   uint *oemtable;               // OEM table pointer
   ushort oemlength;             // OEM table length
   ushort entry;                 // entry count
-  uint *lapicaddr;              // address of local APIC
+  uint *lapicaddr;              // ローカルAPICのアドレス
   ushort xlength;               // extended table length
   uchar xchecksum;              // extended table checksum
   uchar reserved;

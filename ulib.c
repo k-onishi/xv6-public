@@ -33,6 +33,7 @@ strlen(const char *s)
   return n;
 }
 
+// dstを始点からnバイト分をデータcを用いて初期化する。
 void*
 memset(void *dst, int c, uint n)
 {

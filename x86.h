@@ -104,6 +104,7 @@ ltr(ushort sel)
   asm volatile("ltr %0" : : "r" (sel));
 }
 
+// EFLAGSレジスタの値を取得する
 static inline uint
 readeflags(void)
 {
@@ -118,6 +119,7 @@ loadgs(ushort v)
   asm volatile("movw %0, %%gs" : : "r" (v));
 }
 
+// 割り込みの禁止
 static inline void
 cli(void)
 {

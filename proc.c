@@ -34,12 +34,13 @@ cpuid() {
 
 // Must be called with interrupts disabled to avoid the caller being
 // rescheduled between reading lapicid and running through the loop.
+// 当該関数は割り込みを禁止した状態で呼び出す必要がある。
 struct cpu*
 mycpu(void)
 {
   int apicid, i;
   
-  if(readeflags()&FL_IF)
+  if(readeflags()&FL_IF) // 割り込みが許可されている状態だった場合
     panic("mycpu called with interrupts enabled\n");
   
   apicid = lapicid();

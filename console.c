@@ -19,6 +19,7 @@ static void consputc(int);
 
 static int panicked = 0;
 
+// ロック
 static struct {
   struct spinlock lock;
   int locking;
@@ -109,7 +110,7 @@ panic(char *s)
   int i;
   uint pcs[10];
 
-  cli();
+  cli(); // 割り込みの禁止
   cons.locking = 0;
   // use lapiccpunum so that we can call panic from mycpu()
   cprintf("lapicid %d: panic: ", lapicid());
