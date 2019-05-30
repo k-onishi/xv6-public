@@ -32,9 +32,8 @@ cpuid() {
   return mycpu()-cpus;
 }
 
-// Must be called with interrupts disabled to avoid the caller being
-// rescheduled between reading lapicid and running through the loop.
-// 当該関数は割り込みを禁止した状態で呼び出す必要がある。
+// 当該関数は割り込みを禁止した状態で呼び出す必要がある。これは呼び出し側が
+// lapicidを読み込む処理とループ内での動作でリスケジュールされるのを回避するためである
 struct cpu*
 mycpu(void)
 {
@@ -43,9 +42,11 @@ mycpu(void)
   if(readeflags()&FL_IF) // 割り込みが許可されている状態だった場合
     panic("mycpu called with interrupts enabled\n");
   
-  apicid = lapicid();
+  apicid = lapicid(); // ローカルAPICのIDを取得する
   // APIC IDs are not guaranteed to be contiguous. Maybe we should have
   // a reverse map, or reserve a register to store &cpus[i].
+  // APIC IDは連続しているとは限らない。なので&cpu[i]を代入するための
+  // リバースマップか若しくは予約されたレジスタを保持する必要がある。
   for (i = 0; i < ncpu; ++i) {
     if (cpus[i].apicid == apicid)
       return &cpus[i];

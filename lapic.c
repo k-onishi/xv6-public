@@ -41,7 +41,7 @@
 #define TCCR    (0x0390/4)   // Timer Current Count
 #define TDCR    (0x03E0/4)   // Timer Divide Configuration
 
-volatile uint *lapic;  // ローカルAPICのアドレス
+volatile uint *lapic;  // ローカルAPICのアドレス(mp.cで初期化される)
 
 //PAGEBREAK!
 static void
@@ -97,12 +97,13 @@ lapicinit(void)
   lapicw(TPR, 0);
 }
 
+// ローカルAPICのIDを取得する
 int
 lapicid(void)
 {
   if (!lapic)
     return 0;
-  return lapic[ID] >> 24;
+  return lapic[ID] >> 24; // 上位8bitがIDになっている
 }
 
 // Acknowledge interrupt.

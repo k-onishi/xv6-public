@@ -126,6 +126,7 @@ cli(void)
   asm volatile("cli");
 }
 
+// 割り込みを許可
 static inline void
 sti(void)
 {

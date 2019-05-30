@@ -6,7 +6,7 @@ struct cpu {
   struct segdesc gdt[NSEGS];   // x86 global descriptor table
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
-  int intena;                  // Were interrupts enabled before pushcli?
+  int intena;                  // pushcliの前段階で割り込みが可能かどうか?
   struct proc *proc;           // The process running on this cpu or null
 };
 
