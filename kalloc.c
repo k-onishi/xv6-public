@@ -13,15 +13,16 @@ void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
                    // defined by the kernel linker script in kernel.ld
 
+// 単方向リスト
 struct run {
   struct run *next;
 };
 
-// ロック変数 
+// 排他制御用の構造体
 struct {
-  struct spinlock lock;
-  int use_lock;
-  struct run *freelist;
+  struct spinlock lock; // ロック変数
+  int use_lock; // ロックを使用する必要があるのか
+  struct run *freelist; // 単方向リスト
 } kmem;
 
 // 初期化は二段階で行われる。
@@ -34,7 +35,7 @@ kinit1(void *vstart, void *vend)
 {
   initlock(&kmem.lock, "kmem"); // kmemという名前でspinlock構造体を初期化
   kmem.use_lock = 0; // ロックを使用するかどうか(しない)
-  freerange(vstart, vend);
+  freerange(vstart, vend); // アドレスで指定したメモリの範囲を初期化する
 }
 
 void
@@ -44,13 +45,14 @@ kinit2(void *vstart, void *vend)
   kmem.use_lock = 1;
 }
 
+// vstartからvendまでのメモリを開放する
 void
 freerange(void *vstart, void *vend)
 {
   char *p;
   p = (char*)PGROUNDUP((uint)vstart); // ページサイズ以上にならないようにアドレス値を丸める
   for(; p + PGSIZE <= (char*)vend; p += PGSIZE) // 指定された終点アドレスまでページサイズ単位で処理を繰り返す
-    kfree(p); // 
+    kfree(p); // アドレスで指定したページを初期化する
 }
 
 // 指定の物理アドレスで指定されたページを解放する。
@@ -59,7 +61,7 @@ freerange(void *vstart, void *vend)
 void
 kfree(char *v)
 {
-  struct run *r;
+  struct run *r; // 単方向リスト
 
   // ページサイズ境界でアラインメントされていない || endよりも小さいアドレス || 許容されている物理メモリよりも大きい場合
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
@@ -68,13 +70,16 @@ kfree(char *v)
   // vを始点にページサイズ分を1で初期化する
   memset(v, 1, PGSIZE);
 
-  if(kmem.use_lock) // ロックを使用している
-    acquire(&kmem.lock);
+  if(kmem.use_lock) // ロックを使用する必要がある場合
+    acquire(&kmem.lock); // ロックを取得するまでスピンロック
+  
+  // 空きメモリリストを初期化  
   r = (struct run*)v;
   r->next = kmem.freelist;
   kmem.freelist = r;
-  if(kmem.use_lock)
-    release(&kmem.lock);
+
+  if(kmem.use_lock) // ロックを使用する必要がある場合
+    release(&kmem.lock); // ロックを開放
 }
 
 // Allocate one 4096-byte page of physical memory.

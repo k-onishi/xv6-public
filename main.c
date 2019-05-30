@@ -18,7 +18,7 @@ extern char end[]; // ELFファイルからロードしたカーネルの後ろ�
 int
 main(void)
 {
-  kinit1(end, P2V(4*1024*1024)); // phys page allocator
+  kinit1(end, P2V(4*1024*1024)); // 物理ページアロケータ
   kvmalloc();      // kernel page table
   mpinit();        // detect other processors
   lapicinit();     // interrupt controller

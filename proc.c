@@ -43,13 +43,11 @@ mycpu(void)
     panic("mycpu called with interrupts enabled\n");
   
   apicid = lapicid(); // ローカルAPICのIDを取得する
-  // APIC IDs are not guaranteed to be contiguous. Maybe we should have
-  // a reverse map, or reserve a register to store &cpus[i].
   // APIC IDは連続しているとは限らない。なので&cpu[i]を代入するための
   // リバースマップか若しくは予約されたレジスタを保持する必要がある。
   for (i = 0; i < ncpu; ++i) {
-    if (cpus[i].apicid == apicid)
-      return &cpus[i];
+    if (cpus[i].apicid == apicid) // APICのIDが同じだった場合
+      return &cpus[i]; // そのCPUをカレントCPUと判断する。
   }
   panic("unknown apicid\n");
 }

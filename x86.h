@@ -133,16 +133,19 @@ sti(void)
   asm volatile("sti");
 }
 
+// アドレスで指定した値とnewvalを入れ替える
 static inline uint
 xchg(volatile uint *addr, uint newval)
 {
   uint result;
 
-  // The + in "+m" denotes a read-modify-write operand.
-  asm volatile("lock; xchgl %0, %1" :
+  // "+m"の"+"は読み込み/変更/書き込みを行うオペランドであることを示す
+  // lockは後続のオペコードをアトミックに処理するためのプレフィクス
+  // xchg: http://softwaretechnique.jp/OS_Development/Tips/IA32_Instructions/XCHG.html
+  asm volatile("lock; xchgl %0, %1" : // 値を交換する(どちらか一方がメモリアドレスだった場合自動的に"lock"プレフィクスが付与される)
                "+m" (*addr), "=a" (result) :
                "1" (newval) :
-               "cc");
+               "cc"); // ステータスレジスタが更新される可能性があるの意
   return result;
 }
 

@@ -31,45 +31,44 @@ acquire(struct spinlock *lk)
     panic("acquire");
 
   // The xchg is atomic.
-  while(xchg(&lk->locked, 1) != 0)
+  while(xchg(&lk->locked, 1) != 0) // スピンロック(値が1である間ループする)
     ;
 
-  // Tell the C compiler and the processor to not move loads or stores
-  // past this point, to ensure that the critical section's memory
-  // references happen after the lock is acquired.
-  __sync_synchronize();
+  // ロックを取得した後クリティカルセクション内のメモリ参照が発生することを保証するため、
+  // コンパイラにこれ以前にロードまたはストア命令を並び替えないように指示する。  
+  __sync_synchronize(); // メモリバリア
 
   // Record info about lock acquisition for debugging.
-  lk->cpu = mycpu();
-  getcallerpcs(&lk, lk->pcs);
+  // デバッグのためロック取得時の情報を記録する
+  lk->cpu = mycpu(); // ロックを取得しているCPUを更新
+  getcallerpcs(&lk, lk->pcs); // コールトレースのための情報を記録
 }
 
-// Release the lock.
+// ロックを開放する
 void
 release(struct spinlock *lk)
 {
-  if(!holding(lk))
+  if(!holding(lk)) // ロックが既に開放されている場合
     panic("release");
 
+  // コールスタックの情報をリセット
   lk->pcs[0] = 0;
   lk->cpu = 0;
 
-  // Tell the C compiler and the processor to not move loads or stores
-  // past this point, to ensure that all the stores in the critical
-  // section are visible to other cores before the lock is released.
-  // Both the C compiler and the hardware may re-order loads and
-  // stores; __sync_synchronize() tells them both not to.
+  // ロックを開放する前にクリティカルセッション内の全てのストア命令が他のプロセッサから見えるように
+  // コンパイラとプロセッサ対して最適化によってロードやストア命令をこれより前に並び替えないよう指示する
+  // Cコンパイラ及びハードウェアはおそらくロードやストア命令を並び替える。これを__sync_synchronize()によって阻止する
   __sync_synchronize();
 
-  // Release the lock, equivalent to lk->locked = 0.
-  // This code can't use a C assignment, since it might
-  // not be atomic. A real OS would use C atomics here.
+  // ロックを開放する、lk->locked = 0と等価。
+  // このコードはアトミックに処理されない可能性あるためC言語からは使用できない。
+  // 実際のOSではCのアトミックを使用する。
   asm volatile("movl $0, %0" : "+m" (lk->locked) : );
 
-  popcli();
+  popcli(); // 割り込み禁止カウンタをデクリメント
 }
 
-// Record the current call stack in pcs[] by following the %ebp chain.
+// ebpを基準に現在のコールスタック(eip)をpcs[]に記録する
 void
 getcallerpcs(void *v, uint pcs[])
 {
@@ -78,11 +77,13 @@ getcallerpcs(void *v, uint pcs[])
 
   ebp = (uint*)v - 2;
   for(i = 0; i < 10; i++){
+    // ebpが0またはカーネル仮想アドレスより小さい、またはebpが0xFFFFFFFFの場合
     if(ebp == 0 || ebp < (uint*)KERNBASE || ebp == (uint*)0xffffffff)
       break;
-    pcs[i] = ebp[1];     // saved %eip
-    ebp = (uint*)ebp[0]; // saved %ebp
+    pcs[i] = ebp[1];     // eipを保存
+    ebp = (uint*)ebp[0]; // ebpを保存
   }
+  // 記録したeipが10個満たない場合は0埋めする 
   for(; i < 10; i++)
     pcs[i] = 0;
 }
@@ -93,7 +94,7 @@ holding(struct spinlock *lock)
 {
   int r;
   pushcli(); // 割り込みの禁止
-  r = lock->locked && lock->cpu == mycpu(); // CPUが同じで且つロックされているかどうか
+  r = lock->locked && lock->cpu == mycpu(); // CPUがカレントCPUで且つロックされているかどうか
   popcli(); // 割り込み許可
   return r; // ロックが取得されているかどうか
 }
@@ -101,6 +102,8 @@ holding(struct spinlock *lock)
 // pushcli/popcliはマッチする以外はcli/sti命令と同様の動作をする命令である。
 // 2回分のpushcliｗ開放するには2回分のpopcliを必要とする。もし割り込みが禁止されていれば
 // pushcli, popcli共に割り込みを禁止したままとなる。
+
+// 割り込み禁止カウンタをインクリメント
 void
 pushcli(void)
 {
@@ -113,6 +116,7 @@ pushcli(void)
   mycpu()->ncli += 1; // ncliが1以上で割り込み禁止
 }
 
+// 割り込み禁止カウンタをデクリメント
 void
 popcli(void)
 {
