@@ -6,7 +6,7 @@
 
 // Key addresses for address space layout (see kmap in vm.c for layout)
 #define KERNBASE 0x80000000         // カーネルの先頭仮想アドレス
-#define KERNLINK (KERNBASE+EXTMEM)  // Address where kernel is linked
+#define KERNLINK (KERNBASE+EXTMEM)  // カーネルがリンクされているアドレス
 
 #define V2P(a) (((uint) (a)) - KERNBASE)
 #define P2V(a) ((void *)(((char *) (a)) + KERNBASE))
