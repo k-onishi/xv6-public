@@ -29,50 +29,62 @@ seginit(void)
   lgdt(c->gdt, sizeof(c->gdt));
 }
 
-// Return the address of the PTE in page table pgdir
-// that corresponds to virtual address va.  If alloc!=0,
-// create any required page table pages.
+// ページディレクトリの仮想アドレスに対応するPTEのアドレスを返す
+// allocが0を返した場合は必要とされているテーブルのページを割り当てる
 static pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
-  pde_t *pde;
-  pte_t *pgtab;
+  pde_t *pde; // ページディレクトリエントリ
+  pte_t *pgtab; // ページテーブル
 
-  pde = &pgdir[PDX(va)];
+  pde = &pgdir[PDX(va)]; // 仮想アドレスをインデックスにページディレクトリを取得
+
+  // ページディレクトリが存在している場合
   if(*pde & PTE_P){
+    // 仮想アドレスのページオフセット(下位10bit)以外を仮想アドレスに変換する
     pgtab = (pte_t*)P2V(PTE_ADDR(*pde));
+  
+  // ページディレクトリが存在しない場合
   } else {
+    // 割り当てしないよう指定されている、もしくは割り当てに失敗した場合は0を返す
     if(!alloc || (pgtab = (pte_t*)kalloc()) == 0)
       return 0;
-    // Make sure all those PTE_P bits are zero.
+    
+    // 仮想アドレスで指定したページを0クリア
     memset(pgtab, 0, PGSIZE);
-    // The permissions here are overly generous, but they can
-    // be further restricted by the permissions in the page table
-    // entries, if necessary.
+    // この設定では過度に寛容だが、必要であればページテーブルの権限で制限することも可能
     *pde = V2P(pgtab) | PTE_P | PTE_W | PTE_U;
   }
-  return &pgtab[PTX(va)];
+  return &pgtab[PTX(va)]; // ページテーブルのエントリを返す
 }
 
-// Create PTEs for virtual addresses starting at va that refer to
-// physical addresses starting at pa. va and size might not
-// be page-aligned.
+// "va"で開始する仮想アドレスを"pa"で開始する物理アドレスに変換するため、
+// PTE(Page Table Entry)を作成する。引数である"va"と"size"はページ境界で
+// アラインメントされる可能性がある
 static int
 mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
   char *a, *last;
   pte_t *pte;
 
-  a = (char*)PGROUNDDOWN((uint)va);
-  last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
+  // ページ境界になるよう値を切り下げる
+  a = (char*)PGROUNDDOWN((uint)va); // 開始アドレス
+  last = (char*)PGROUNDDOWN(((uint)va) + size - 1); // ページの終端アドレス
+
   for(;;){
+    // PTEを取得
     if((pte = walkpgdir(pgdir, a, 1)) == 0)
       return -1;
+    
+    // 既に存在している場合
     if(*pte & PTE_P)
       panic("remap");
-    *pte = pa | perm | PTE_P;
-    if(a == last)
+    
+    *pte = pa | perm | PTE_P; // PTEに物理アドレス及び権限、存在を示すフラグを設定
+    if(a == last) // 指定の範囲に達した場合は終了
       break;
+    
+    // 次のページ分へ
     a += PGSIZE;
     pa += PGSIZE;
   }
@@ -100,32 +112,36 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 // between V2P(end) and the end of physical memory (PHYSTOP)
 // (directly addressable from end..P2V(PHYSTOP)).
 
-// This table defines the kernel's mappings, which are present in
-// every process's page table.
+// このテーブルはカーネルのマッピングを定義しており
+// これは全てのプロセスのページテーブルに存在する。
 static struct kmap {
   void *virt;
   uint phys_start;
   uint phys_end;
   int perm;
 } kmap[] = {
- { (void*)KERNBASE, 0,             EXTMEM,    PTE_W}, // I/O space
- { (void*)KERNLINK, V2P(KERNLINK), V2P(data), 0},     // kern text+rodata
- { (void*)data,     V2P(data),     PHYSTOP,   PTE_W}, // kern data+memory
- { (void*)DEVSPACE, DEVSPACE,      0,         PTE_W}, // more devices
+ { (void*)KERNBASE, 0,             EXTMEM,    PTE_W}, // I/O空間
+ { (void*)KERNLINK, V2P(KERNLINK), V2P(data), 0},     // カーネルのtext及びrodata
+ { (void*)data,     V2P(data),     PHYSTOP,   PTE_W}, // カーネルのdata及びmemory
+ { (void*)DEVSPACE, DEVSPACE,      0,         PTE_W}, // その他のデバイス
 };
 
-// Set up kernel part of a page table.
+// ページテーブルの一部をセットアップする
 pde_t*
 setupkvm(void)
 {
-  pde_t *pgdir;
-  struct kmap *k;
+  pde_t *pgdir; // ページディレクトリエントリのポインタ
+  struct kmap *k; // カーネルのマッピング情報
 
-  if((pgdir = (pde_t*)kalloc()) == 0)
+  if((pgdir = (pde_t*)kalloc()) == 0) // 物理ページフレームを取得
     return 0;
-  memset(pgdir, 0, PGSIZE);
-  if (P2V(PHYSTOP) > (void*)DEVSPACE)
+  
+  memset(pgdir, 0, PGSIZE); // 0で初期化
+
+  if (P2V(PHYSTOP) > (void*)DEVSPACE) // ハイメモリの領域に侵入してしまっている場合
     panic("PHYSTOP too high");
+  
+  // カーネルのマッピング情報を元に
   for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
     if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
                 (uint)k->phys_start, k->perm) < 0) {
@@ -135,8 +151,7 @@ setupkvm(void)
   return pgdir;
 }
 
-// Allocate one page table for the machine for the kernel address
-// space for scheduler processes.
+// 単一のページテーブルをカーネル空間で動作するスケジューラのために割り当てる
 void
 kvmalloc(void)
 {
@@ -252,14 +267,21 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
+
+// ユーザプロセスのページを元のサイズ(oldsz)から新たなサイズ(newsz)にメモリサイズを小さくするために
+// ユーザのページの割り当てを取り消す。元のサイズと新たなサイズはページ境界でアラインメントされている
+// 必要はなく、新たなサイズは元のサイズよりも小さくある必要もない。
+// 元のサイズは実際にプロセスが使用しているサイズよりも大きく指定することも可能である。
+// 新しいプロセスのサイズを返す。
 int
 deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   pte_t *pte;
   uint a, pa;
 
+  // 新たなサイズが元のサイズよりも大きい場合
   if(newsz >= oldsz)
-    return oldsz;
+    return oldsz; // ページの割り当てを取り消す必要がないためそのまま元のサイズを返す
 
   a = PGROUNDUP(newsz);
   for(; a  < oldsz; a += PGSIZE){
@@ -280,13 +302,16 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
 // Free a page table and all the physical memory pages
 // in the user part.
+// ユーザ空間のページテーブルと全ての物理メモリページフレームを開放する
 void
 freevm(pde_t *pgdir)
 {
   uint i;
 
+  // ページディレクトリが存在しない
   if(pgdir == 0)
     panic("freevm: no pgdir");
+  
   deallocuvm(pgdir, KERNBASE, 0);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P){

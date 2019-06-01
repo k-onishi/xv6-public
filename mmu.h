@@ -62,7 +62,7 @@ struct segdesc {
 #define STS_IG32    0xE     // 32-bit Interrupt Gate
 #define STS_TG32    0xF     // 32-bit Trap Gate
 
-// A virtual address 'la' has a three-part structure as follows:
+// 仮想アドレスである'la'は次の3のパートから構成されている
 //
 // +--------10------+-------10-------+---------12----------+
 // | Page Directory |   Page Table   | Offset within Page  |
@@ -70,10 +70,10 @@ struct segdesc {
 // +----------------+----------------+---------------------+
 //  \--- PDX(va) --/ \--- PTX(va) --/
 
-// page directory index
+// ページディレクトリのインデックス(リニアアドレスの上位10bit)
 #define PDX(va)         (((uint)(va) >> PDXSHIFT) & 0x3FF)
 
-// page table index
+// ページテーブルのインデックス(リニアアドレスの13~22bit)
 #define PTX(va)         (((uint)(va) >> PTXSHIFT) & 0x3FF)
 
 // construct virtual address from indexes and offset
@@ -82,19 +82,19 @@ struct segdesc {
 // Page directory and page table constants.
 #define NPDENTRIES      1024    // # directory entries per page directory
 #define NPTENTRIES      1024    // # PTEs per page table
-#define PGSIZE          4096    // bytes mapped by a page
+#define PGSIZE          4096    // ページサイズ(Byte)
 
-#define PTXSHIFT        12      // offset of PTX in a linear address
-#define PDXSHIFT        22      // offset of PDX in a linear address
+#define PTXSHIFT        12      // リニアアドレス内のページテーブルのオフセット
+#define PDXSHIFT        22      // リニアアドレス内のページディレクトリのオフセット
 
-#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1)) // ページサイズ以上にならないよう値を丸める
-#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
+#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1)) // ページ境界になるよう値を切り上げる(サイズが2ページ以上、3ページ未満の場合、3ページ分の値に切り上げる)
+#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1)) // ページ境界になるよう値を切り下げる(サイズが2ページ以上、3ページ未満の場合、2ページ分の値に切り下げる)
 
 // Page table/directory entry flags.
-#define PTE_P           0x001   // Present
-#define PTE_W           0x002   // Writeable
-#define PTE_U           0x004   // User
-#define PTE_PS          0x080   // Page Size
+#define PTE_P           0x001   // 存在する
+#define PTE_W           0x002   // 書き込み可能
+#define PTE_U           0x004   // ユーザ
+#define PTE_PS          0x080   // ページサイズ
 
 // Address in page table or page directory entry
 #define PTE_ADDR(pte)   ((uint)(pte) & ~0xFFF)

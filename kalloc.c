@@ -82,21 +82,26 @@ kfree(char *v)
     release(&kmem.lock); // ロックを開放
 }
 
-// Allocate one 4096-byte page of physical memory.
-// Returns a pointer that the kernel can use.
-// Returns 0 if the memory cannot be allocated.
+// 4KBの物理メモリページフレームを割り当てる。
+// カーネルが使用可能なポインタを返す。
+// 割当に失敗した場合には0を返す。
 char*
 kalloc(void)
 {
   struct run *r;
 
+  /* ロックを使用する必要がある場合にはロックを取得する */
   if(kmem.use_lock)
     acquire(&kmem.lock);
-  r = kmem.freelist;
-  if(r)
-    kmem.freelist = r->next;
+  
+  r = kmem.freelist; // フリーリストを取得
+  if(r) // フリーリストが存在する
+    kmem.freelist = r->next; // フリーリストに次の要素を設定(先頭を使用するため)
+  
+  /* ロックを使用する必要がある場合にはロックを開放する */
   if(kmem.use_lock)
     release(&kmem.lock);
-  return (char*)r;
+  
+  return (char*)r; // フリーリストの先頭要素をかえす
 }
 
