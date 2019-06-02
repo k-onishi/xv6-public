@@ -263,11 +263,6 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   return newsz;
 }
 
-// Deallocate user pages to bring the process size from oldsz to
-// newsz.  oldsz and newsz need not be page-aligned, nor does newsz
-// need to be less than oldsz.  oldsz can be larger than the actual
-// process size.  Returns the new process size.
-
 // ユーザプロセスのページを元のサイズ(oldsz)から新たなサイズ(newsz)にメモリサイズを小さくするために
 // ユーザのページの割り当てを取り消す。元のサイズと新たなサイズはページ境界でアラインメントされている
 // 必要はなく、新たなサイズは元のサイズよりも小さくある必要もない。
@@ -283,18 +278,26 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   if(newsz >= oldsz)
     return oldsz; // ページの割り当てを取り消す必要がないためそのまま元のサイズを返す
 
-  a = PGROUNDUP(newsz);
-  for(; a  < oldsz; a += PGSIZE){
-    pte = walkpgdir(pgdir, (char*)a, 0);
+  a = PGROUNDUP(newsz); // ページサイズになるようサイズを切り上げ
+  for(; a  < oldsz; a += PGSIZE){ // ページサイズよりも小さい間ページサイズ毎に繰り返し処理する
+    pte = walkpgdir(pgdir, (char*)a, 0); // 仮想アドレスに対応するPTEを取得
+    
+    // PTEが存在しない場合
     if(!pte)
-      a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
+      a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE; // 仮想アドレスを構築
+    
+    // PTEに対応するページが存在する
     else if((*pte & PTE_P) != 0){
-      pa = PTE_ADDR(*pte);
+      pa = PTE_ADDR(*pte); // PTEに対応する物理アドレスを取得
+      
+      // 取得に失敗
       if(pa == 0)
         panic("kfree");
-      char *v = P2V(pa);
-      kfree(v);
-      *pte = 0;
+      
+      char *v = P2V(pa); // 物理アドレスを仮想アドレスに変換
+      kfree(v); // 仮想アドレスを開放
+
+      *pte = 0; // PTEの値もゼロに
     }
   }
   return newsz;

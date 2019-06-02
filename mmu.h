@@ -52,15 +52,15 @@ struct segdesc {
 
 #define DPL_USER    0x3     // User DPL
 
-// Application segment type bits
-#define STA_X       0x8     // Executable segment
-#define STA_W       0x2     // Writeable (non-executable segments)
-#define STA_R       0x2     // Readable (executable segments)
+// アプリケーションセグメントの種類
+#define STA_X       0x8     // 実行可能
+#define STA_W       0x2     // 書き込み可能 (実行不可)
+#define STA_R       0x2     // 読み込み可能 (実行可能)
 
-// System segment type bits
+// システムセグメントの種類
 #define STS_T32A    0x9     // Available 32-bit TSS
-#define STS_IG32    0xE     // 32-bit Interrupt Gate
-#define STS_TG32    0xF     // 32-bit Trap Gate
+#define STS_IG32    0xE     // 32bitの割り込みゲート
+#define STS_TG32    0xF     // 32bitのトラップゲート
 
 // 仮想アドレスである'la'は次の3のパートから構成されている
 //
@@ -76,7 +76,7 @@ struct segdesc {
 // ページテーブルのインデックス(リニアアドレスの13~22bit)
 #define PTX(va)         (((uint)(va) >> PTXSHIFT) & 0x3FF)
 
-// construct virtual address from indexes and offset
+// インデックスとオフセットから仮想アドレスを構築する
 #define PGADDR(d, t, o) ((uint)((d) << PDXSHIFT | (t) << PTXSHIFT | (o)))
 
 // Page directory and page table constants.
@@ -97,8 +97,8 @@ struct segdesc {
 #define PTE_PS          0x080   // ページサイズ
 
 // Address in page table or page directory entry
-#define PTE_ADDR(pte)   ((uint)(pte) & ~0xFFF)
-#define PTE_FLAGS(pte)  ((uint)(pte) &  0xFFF)
+#define PTE_ADDR(pte)   ((uint)(pte) & ~0xFFF) // ページテーブルもしくはページディレクトリのエントリ内のアドレス(上位20bit)
+#define PTE_FLAGS(pte)  ((uint)(pte) &  0xFFF) // ページテーブルもしくはページディレクトリのフラグ値を取得
 
 #ifndef __ASSEMBLER__
 typedef uint pte_t;
