@@ -19,7 +19,7 @@ int
 main(void)
 {
   kinit1(end, P2V(4*1024*1024)); // 物理ページアロケータ
-  kvmalloc();      // カーネルページテーブル
+  kvmalloc();      // カーネルページテーブルの一部をセットアップする
   mpinit();        // detect other processors
   lapicinit();     // interrupt controller
   seginit();       // segment descriptors

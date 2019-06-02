@@ -37,7 +37,7 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   pde_t *pde; // ページディレクトリエントリ
   pte_t *pgtab; // ページテーブル
 
-  pde = &pgdir[PDX(va)]; // 仮想アドレスをインデックスにページディレクトリを取得
+  pde = &pgdir[PDX(va)]; // 仮想アドレスをインデックスにページディレクトリのエントリを取得
 
   // ページディレクトリが存在している場合
   if(*pde & PTE_P){
@@ -120,10 +120,18 @@ static struct kmap {
   uint phys_end;
   int perm;
 } kmap[] = {
- { (void*)KERNBASE, 0,             EXTMEM,    PTE_W}, // I/O空間
- { (void*)KERNLINK, V2P(KERNLINK), V2P(data), 0},     // カーネルのtext及びrodata
- { (void*)data,     V2P(data),     PHYSTOP,   PTE_W}, // カーネルのdata及びmemory
- { (void*)DEVSPACE, DEVSPACE,      0,         PTE_W}, // その他のデバイス
+ // I/O空間(カーネル空間(物理アドレスの先頭)から1MB)
+ { (void*)KERNBASE, 0,             EXTMEM,    PTE_W}, 
+
+ // カーネルのtext及びrodata(カーネルがリンクされている位置からデータセグメントまで)
+ { (void*)KERNLINK, V2P(KERNLINK), V2P(data), 0},
+
+ // カーネルのdata及びmemory(データセグメント開始位置から224MBまで)
+ // dataはtext及びrodataの終端以降のページ境界から開始する(これはリンカスクリプトで設定されている)
+ { (void*)data,     V2P(data),     PHYSTOP,   PTE_W},
+
+ // その他のデバイス
+ { (void*)DEVSPACE, DEVSPACE,      0,         PTE_W},
 };
 
 // ページテーブルの一部をセットアップする
@@ -141,14 +149,16 @@ setupkvm(void)
   if (P2V(PHYSTOP) > (void*)DEVSPACE) // ハイメモリの領域に侵入してしまっている場合
     panic("PHYSTOP too high");
   
-  // カーネルのマッピング情報を元に
+  // カーネルのマッピング情報を元にページディレクトリ及びページテーブルを構築する
   for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
     if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
                 (uint)k->phys_start, k->perm) < 0) {
+      
+      // 構築に失敗した場合にはページディレクトリ及びページテーブル、PTEを全て破棄する
       freevm(pgdir);
       return 0;
     }
-  return pgdir;
+  return pgdir; // 設定されたページディレクトリのエントリを返す
 }
 
 // 単一のページテーブルをカーネル空間で動作するスケジューラのために割り当てる
@@ -300,11 +310,9 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       *pte = 0; // PTEの値もゼロに
     }
   }
-  return newsz;
+  return newsz; // 新しいサイズ
 }
 
-// Free a page table and all the physical memory pages
-// in the user part.
 // ユーザ空間のページテーブルと全ての物理メモリページフレームを開放する
 void
 freevm(pde_t *pgdir)
@@ -315,14 +323,15 @@ freevm(pde_t *pgdir)
   if(pgdir == 0)
     panic("freevm: no pgdir");
   
-  deallocuvm(pgdir, KERNBASE, 0);
-  for(i = 0; i < NPDENTRIES; i++){
-    if(pgdir[i] & PTE_P){
-      char * v = P2V(PTE_ADDR(pgdir[i]));
-      kfree(v);
+  deallocuvm(pgdir, KERNBASE, 0); // ページディレクトリがに対応するページを全て開放する
+  for(i = 0; i < NPDENTRIES; i++){ // ページディレクトリ内のエントリ数の回数繰り返す
+    if(pgdir[i] & PTE_P){ // ページディレクトリエントリが存在している場合
+      // ページディレクトリエントリに対応するページ(ページテーブルの仮想アドレスを取得)
+      char * v = P2V(PTE_ADDR(pgdir[i])); 
+      kfree(v); // ページテーブルを開放
     }
   }
-  kfree((char*)pgdir);
+  kfree((char*)pgdir); // ページディレクトリを開放
 }
 
 // Clear PTE_U on a page. Used to create an inaccessible

@@ -100,8 +100,11 @@ mpinit(void)
 
   if((conf = mpconfig(&mp)) == 0)
     panic("Expect to run on an SMP");
+  
   ismp = 1;
   lapic = (uint*)conf->lapicaddr;
+
+
   for(p=(uchar*)(conf+1), e=(uchar*)conf+conf->length; p<e; ){
     switch(*p){
     case MPPROC:
@@ -127,6 +130,8 @@ mpinit(void)
       break;
     }
   }
+
+  
   if(!ismp)
     panic("Didn't find a suitable machine");
 
