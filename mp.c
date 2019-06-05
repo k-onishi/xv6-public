@@ -40,11 +40,11 @@ mpsearch1(uint a, int len)
   return 0;
 }
 
-// Search for the MP Floating Pointer Structure, which according to the
-// spec is in one of the following three locations:
-// 1) in the first KB of the EBDA;
-// 2) in the last KB of system base memory;
-// 3) in the BIOS ROM between 0xE0000 and 0xFFFFF.
+// MP Floating Pointer Structureを探す。
+// これはスペックによると次の3つの場所のうちのどこかに存在する。
+// 1) EBDA(Extended BIOS Data Area)の先頭1KB
+// 2) システムベースメモリの末尾1KB
+// 3) BIOS ROMになっている0xE0000 ~ 0xFFFFFの間
 static struct mp*
 mpsearch(void)
 {
@@ -69,6 +69,11 @@ mpsearch(void)
 // Check for correct signature, calculate the checksum and,
 // if correct, check the version.
 // To do: check extended table checksum.
+// MPコンフィグレーションテーブルを探す。
+// 現時点ではデフォルト設定(物理アドレス==0)は受け付けない
+// 現在のシグネチャを確認し、チェックサムを算出し
+// もし正しければ、バージョンを確認する
+// To do: 拡張テーブルのチェックサムを確認する
 static struct mpconf*
 mpconfig(struct mp **pmp)
 {

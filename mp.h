@@ -1,5 +1,7 @@
 // See MultiProcessor Specification Version 1.[14]
+// https://pdos.csail.mit.edu/6.828/2018/readings/ia32/MPspec.pdf
 
+//
 struct mp {             // floating pointer
   uchar signature[4];           // "_MP_"
   void *physaddr;               // phys addr of MP config table

@@ -20,7 +20,7 @@ main(void)
 {
   kinit1(end, P2V(4*1024*1024)); // 物理ページアロケータ
   kvmalloc();      // カーネルページテーブルの一部をセットアップする
-  mpinit();        // detect other processors
+  mpinit();        // 他のCPUを検出する
   lapicinit();     // interrupt controller
   seginit();       // segment descriptors
   picinit();       // disable pic
