@@ -26,15 +26,18 @@ sum(uchar *addr, int len)
   return sum;
 }
 
-// Look for an MP structure in the len bytes at addr.
+// MP構造体を指定のアドレス範囲から探す
 static struct mp*
 mpsearch1(uint a, int len)
 {
   uchar *e, *p, *addr;
 
-  addr = P2V(a);
-  e = addr+len;
-  for(p = addr; p < e; p += sizeof(struct mp))
+  addr = P2V(a); // 仮想アドレスに変換
+  e = addr+len; // 探索範囲の終端を算出
+
+  for(p = addr; p < e; p += sizeof(struct mp)) // 終端まで繰り返す
+
+    // シグネチャが正しく、データのバイト値の合計が0(!?)の場合 = MP構造体を発見
     if(memcmp(p, "_MP_", 4) == 0 && sum(p, sizeof(struct mp)) == 0)
       return (struct mp*)p;
   return 0;
@@ -56,15 +59,20 @@ mpsearch(void)
   bda = (uchar *) P2V(0x400); // BDA(BIOS Data Area)のアドレスを設定
   // BDAからEBDAのアドレスを取得する
   if((p = ((bda[0x0F]<<8)| bda[0x0E]) << 4)){ // EBDAのアドレスを取得
+
     // EBDAの先頭1KBからMP Floating Pointer Structureを探す
     if((mp = mpsearch1(p, 1024)))
       return mp;
   
   } else {
-    p = ((bda[0x14]<<8)|bda[0x13])*1024;
-    if((mp = mpsearch1(p-1024, 1024)))
+    // http://caspar.hazymoon.jp/OpenBSD/annex/bios_data_area.html
+    p = ((bda[0x14]<<8)|bda[0x13])*1024; // 認識しているメモリの末尾(メモリサイズ(KB)*1024)を算出
+    if((mp = mpsearch1(p-1024, 1024))) // 認識しているメモリの末尾1KBを対象に当該構造体を探す
       return mp;
   }
+
+  // 現時点で見つかっていない場合はBIOS ROMが展開されている範囲を探索
+  // http://staff.ustc.edu.cn/~xyfeng/research/cos/resources/machine/mem.htm
   return mpsearch1(0xF0000, 0x10000);
 }
 
@@ -84,11 +92,18 @@ mpconfig(struct mp **pmp)
   struct mpconf *conf;
   struct mp *mp;
 
+  // MP Floating Pointer Structureが見つからない、もしくはMPコンフィグレーションテーブルの物理アドレスが0の場合
   if((mp = mpsearch()) == 0 || mp->physaddr == 0)
     return 0;
+  
+  // MPコンフィグレーションテーブルの仮想アドレスを取得
   conf = (struct mpconf*) P2V((uint) mp->physaddr);
+
+  // シグネチャを確認
   if(memcmp(conf, "PCMP", 4) != 0)
     return 0;
+
+    
   if(conf->version != 1 && conf->version != 4)
     return 0;
   if(sum((uchar*)conf, conf->length) != 0)

@@ -1,23 +1,24 @@
 // See MultiProcessor Specification Version 1.[14]
 // https://pdos.csail.mit.edu/6.828/2018/readings/ia32/MPspec.pdf
 
-//
-struct mp {             // floating pointer
-  uchar signature[4];           // "_MP_"
-  void *physaddr;               // phys addr of MP config table
-  uchar length;                 // 1
+// MP Floating Pointer Structure
+struct mp {
+  uchar signature[4];           // シグネチャ("_MP_")
+  void *physaddr;               // MPコンフィグテーブルの物理アドレス
+  uchar length;                 // 長さ(1)
   uchar specrev;                // [14]
-  uchar checksum;               // all bytes must add up to 0
+  uchar checksum;               // 全てのバイトを足し込んだ結果が0になるよう調整するためのもの？
   uchar type;                   // MP system config type
   uchar imcrp;
   uchar reserved[3];
 };
 
-struct mpconf {         // configuration table header
-  uchar signature[4];           // "PCMP"
-  ushort length;                // total table length
+// MP configuration table header
+struct mpconf {
+  uchar signature[4];           // シグネチャ("PCMP")
+  ushort length;                // テーブルサイズ
   uchar version;                // [14]
-  uchar checksum;               // all bytes must add up to 0
+  uchar checksum;               // 全てのバイトを足し込んだ結果が0になるよう調整するためのもの？
   uchar product[20];            // product id
   uint *oemtable;               // OEM table pointer
   ushort oemlength;             // OEM table length
