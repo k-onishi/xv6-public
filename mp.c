@@ -52,10 +52,14 @@ mpsearch(void)
   uint p;
   struct mp *mp;
 
-  bda = (uchar *) P2V(0x400);
-  if((p = ((bda[0x0F]<<8)| bda[0x0E]) << 4)){
+  // https://wiki.osdev.org/Memory_Map_(x86)
+  bda = (uchar *) P2V(0x400); // BDA(BIOS Data Area)のアドレスを設定
+  // BDAからEBDAのアドレスを取得する
+  if((p = ((bda[0x0F]<<8)| bda[0x0E]) << 4)){ // EBDAのアドレスを取得
+    // EBDAの先頭1KBからMP Floating Pointer Structureを探す
     if((mp = mpsearch1(p, 1024)))
       return mp;
+  
   } else {
     p = ((bda[0x14]<<8)|bda[0x13])*1024;
     if((mp = mpsearch1(p-1024, 1024)))
