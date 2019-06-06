@@ -12,7 +12,7 @@
 #include "proc.h"
 
 struct cpu cpus[NCPU];
-int ncpu;
+int ncpu; // 認識しているCPUの数
 uchar ioapicid;
 
 static uchar
@@ -76,11 +76,6 @@ mpsearch(void)
   return mpsearch1(0xF0000, 0x10000);
 }
 
-// Search for an MP configuration table.  For now,
-// don't accept the default configurations (physaddr == 0).
-// Check for correct signature, calculate the checksum and,
-// if correct, check the version.
-// To do: check extended table checksum.
 // MPコンフィグレーションテーブルを探す。
 // 現時点ではデフォルト設定(物理アドレス==0)は受け付けない
 // 現在のシグネチャを確認し、チェックサムを算出し
@@ -103,15 +98,18 @@ mpconfig(struct mp **pmp)
   if(memcmp(conf, "PCMP", 4) != 0)
     return 0;
 
-    
+  // versionが不正である場合
   if(conf->version != 1 && conf->version != 4)
     return 0;
+  
   if(sum((uchar*)conf, conf->length) != 0)
     return 0;
   *pmp = mp;
   return conf;
 }
 
+// AP(Application Processor)やAPIC(Advanced Programmable Interrupt Controller)の認識や
+// CPUの個数の算出、そして外部割り込みの禁止を行う。
 void
 mpinit(void)
 {
@@ -122,46 +120,62 @@ mpinit(void)
   struct mpproc *proc;
   struct mpioapic *ioapic;
 
+  // 引数で渡したMP Floating Pointer Structureに値を設定し
+  // Multi Processor configuration table headerを返す。
   if((conf = mpconfig(&mp)) == 0)
     panic("Expect to run on an SMP");
   
-  ismp = 1;
-  lapic = (uint*)conf->lapicaddr;
+  ismp = 1; // is SMP == SMP対応のマシーンである
+  lapic = (uint*)conf->lapicaddr; // ローカルAPICのアドレスを取得
 
-
+  // テーブルの直後には位置されるデータをトラバースしていく
+  // 終端はテーブルアドレス+テーブルアドレスのサイズで算出
   for(p=(uchar*)(conf+1), e=(uchar*)conf+conf->length; p<e; ){
+    // 先頭1Byteをチェック
     switch(*p){
+    
+    // プロセッサ
     case MPPROC:
       proc = (struct mpproc*)p;
-      if(ncpu < NCPU) {
-        cpus[ncpu].apicid = proc->apicid;  // apicid may differ from ncpu
-        ncpu++;
+      if(ncpu < NCPU) { // 最大数よりもCPUが少ない場合
+        cpus[ncpu].apicid = proc->apicid;  // APIC IDはncpuとは異なる
+        ncpu++; // 認識しているCPUの個数
       }
       p += sizeof(struct mpproc);
       continue;
+    
+    // I/O APIC
     case MPIOAPIC:
       ioapic = (struct mpioapic*)p;
-      ioapicid = ioapic->apicno;
+      ioapicid = ioapic->apicno; // IO APIC IDを取得
       p += sizeof(struct mpioapic);
       continue;
+     
+    // BUS | バス割り込み | システム割り込み
+    // 上記のいずれかの場合にはエントリのサイズ分ポインタを進める
     case MPBUS:
     case MPIOINTR:
     case MPLINTR:
       p += 8;
       continue;
+    
+    // 無効なエントリ
     default:
       ismp = 0;
       break;
     }
   }
 
-  
+  // SMPに対応していない
   if(!ismp)
     panic("Didn't find a suitable machine");
-
+  
+  // 外部の割り込みを禁止する
   if(mp->imcrp){
-    // Bochs doesn't support IMCR, so this doesn't run on Bochs.
-    // But it would on real hardware.
+    // BochsはIMCR(Interrupt Mask Control Register: 割り込み禁止制御レジスタ)をサポートしていないため
+    // これはBochs上では動作しないが、本物のハードウェア上では正常に動作する。
+
+    // http://zygomatic.sourceforge.net/devref/group__arch__ia32__apic.html
     outb(0x22, 0x70);   // Select IMCR
     outb(0x23, inb(0x23) | 1);  // Mask external interrupts.
   }

@@ -9,7 +9,7 @@ struct mp {
   uchar specrev;                // [14]
   uchar checksum;               // 全てのバイトを足し込んだ結果が0になるよう調整するためのもの？
   uchar type;                   // MP system config type
-  uchar imcrp;
+  uchar imcrp;                  // IMCR Pointer
   uchar reserved[3];
 };
 
@@ -29,13 +29,14 @@ struct mpconf {
   uchar reserved;
 };
 
-struct mpproc {         // processor table entry
-  uchar type;                   // entry type (0)
-  uchar apicid;                 // local APIC id
-  uchar version;                // local APIC verison
+// processor table entry
+struct mpproc {
+  uchar type;                   // エントリタイプ(0)
+  uchar apicid;                 // ローカルAPICID
+  uchar version;                // ローカルAPICバージョン
   uchar flags;                  // CPU flags
-    #define MPBOOT 0x02           // This proc is the bootstrap processor.
-  uchar signature[4];           // CPU signature
+    #define MPBOOT 0x02           // 当プロセッサはブートストラッププロセッサ
+  uchar signature[4];           // CPUシグネチャ
   uint feature;                 // feature flags from CPUID instruction
   uchar reserved[8];
 };
@@ -48,12 +49,12 @@ struct mpioapic {       // I/O APIC table entry
   uint *addr;                  // I/O APIC address
 };
 
-// Table entry types
-#define MPPROC    0x00  // One per processor
-#define MPBUS     0x01  // One per bus
-#define MPIOAPIC  0x02  // One per I/O APIC
-#define MPIOINTR  0x03  // One per bus interrupt source
-#define MPLINTR   0x04  // One per system interrupt source
+// テーブルエントリタイプ
+#define MPPROC    0x00  // 各プロセッサ毎に
+#define MPBUS     0x01  // 各バス毎
+#define MPIOAPIC  0x02  // 各I/O APIC毎
+#define MPIOINTR  0x03  // 各バス割り込みソース
+#define MPLINTR   0x04  // 各システム割り込みソース
 
 //PAGEBREAK!
 // Blank page.

@@ -10,7 +10,7 @@
 #include "mmu.h"
 #include "x86.h"
 
-// Local APIC registers, divided by 4 for use as uint[] indices.
+// ローカルAPICレジスタ。uint(4byte)配列のインデックスとして使用するため4で割る必要がある。
 #define ID      (0x0020/4)   // ID
 #define VER     (0x0030/4)   // Version
 #define TPR     (0x0080/4)   // Task Priority
@@ -44,16 +44,18 @@
 volatile uint *lapic;  // ローカルAPICのアドレス(mp.cで初期化される)
 
 //PAGEBREAK!
+// ローカルAPICレジスタへの書き込みを行う
 static void
 lapicw(int index, int value)
 {
   lapic[index] = value;
-  lapic[ID];  // wait for write to finish, by reading
+  lapic[ID];  // 読み込むことで書き込み完了を待つ
 }
 
 void
 lapicinit(void)
 {
+  // ローカルAPICのアドレスが見つかっていない場合
   if(!lapic)
     return;
 
