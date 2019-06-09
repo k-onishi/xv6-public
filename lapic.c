@@ -10,12 +10,13 @@
 #include "mmu.h"
 #include "x86.h"
 
-// ローカルAPICレジスタ。uint(4byte)配列のインデックスとして使用するため4で割る必要がある。
+// ローカルAPICレジスタがマッピングされているアドレスからのインデックス。
+// uint(4byte)配列のインデックスとして使用するため4で割る必要がある。
 #define ID      (0x0020/4)   // ID
 #define VER     (0x0030/4)   // Version
 #define TPR     (0x0080/4)   // Task Priority
 #define EOI     (0x00B0/4)   // EOI
-#define SVR     (0x00F0/4)   // Spurious Interrupt Vector
+#define SVR     (0x00F0/4)   // 仮の割り込みベクタ
   #define ENABLE     0x00000100   // Unit Enable
 #define ESR     (0x0280/4)   // Error Status
 #define ICRLO   (0x0300/4)   // Interrupt Command
@@ -30,20 +31,19 @@
   #define FIXED      0x00000000
 #define ICRHI   (0x0310/4)   // Interrupt Command [63:32]
 #define TIMER   (0x0320/4)   // Local Vector Table 0 (TIMER)
-  #define X1         0x0000000B   // divide counts by 1
-  #define PERIODIC   0x00020000   // Periodic
-#define PCINT   (0x0340/4)   // Performance Counter LVT
-#define LINT0   (0x0350/4)   // Local Vector Table 1 (LINT0)
-#define LINT1   (0x0360/4)   // Local Vector Table 2 (LINT1)
-#define ERROR   (0x0370/4)   // Local Vector Table 3 (ERROR)
-  #define MASKED     0x00010000   // Interrupt masked
-#define TICR    (0x0380/4)   // Timer Initial Count
-#define TCCR    (0x0390/4)   // Timer Current Count
-#define TDCR    (0x03E0/4)   // Timer Divide Configuration
+  #define X1         0x0000000B   // カウンタを1で割る
+  #define PERIODIC   0x00020000   // 定期的に
+#define PCINT   (0x0340/4)   // パフォーマンスカウンタ LVT
+#define LINT0   (0x0350/4)   // ローカルベクタテーブル1(LINT0)
+#define LINT1   (0x0360/4)   // ローカルベクタテーブル2(LINT1)
+#define ERROR   (0x0370/4)   // ローカルベクタテーブル3(ERROR)
+  #define MASKED     0x00010000   // マスクされた割り込み
+#define TICR    (0x0380/4)   // タイマカウンタの初期値
+#define TCCR    (0x0390/4)   // タイマカウンタの現在の値
+#define TDCR    (0x03E0/4)   // タイマカウンタを除算設定
 
 volatile uint *lapic;  // ローカルAPICのアドレス(mp.cで初期化される)
 
-//PAGEBREAK!
 // ローカルAPICレジスタへの書き込みを行う
 static void
 lapicw(int index, int value)
@@ -59,27 +59,25 @@ lapicinit(void)
   if(!lapic)
     return;
 
-  // Enable local APIC; set spurious interrupt vector.
+  // ローカルAPICを有効化; 仮の割り込みベクタをセットする.
   lapicw(SVR, ENABLE | (T_IRQ0 + IRQ_SPURIOUS));
 
-  // The timer repeatedly counts down at bus frequency
-  // from lapic[TICR] and then issues an interrupt.
-  // If xv6 cared more about precise timekeeping,
-  // TICR would be calibrated using an external time source.
-  lapicw(TDCR, X1);
+  // タイマはlapic[TICR]からバスの周波数でカウントダウンし、割り込みを発生させる。
+  // もしxv6がより正確な時間管理を行う場合には外部タイマソースを用いて調整する。
+  lapicw(TDCR, X1); // カウンタを1で割る
   lapicw(TIMER, PERIODIC | (T_IRQ0 + IRQ_TIMER));
-  lapicw(TICR, 10000000);
+  lapicw(TICR, 10000000); // 初期値を設定
 
-  // Disable logical interrupt lines.
+  // 論理割り込みラインを無効に
   lapicw(LINT0, MASKED);
   lapicw(LINT1, MASKED);
 
-  // Disable performance counter overflow interrupts
-  // on machines that provide that interrupt entry.
+  // 割り込みエントリを提供するマシン上での
+  // パフォーマンスカウンタのオーバーフロー割り込みを無効化
   if(((lapic[VER]>>16) & 0xFF) >= 4)
     lapicw(PCINT, MASKED);
 
-  // Map error interrupt to IRQ_ERROR.
+  // マップエラー割り込みをIRQ_ERRORへ
   lapicw(ERROR, T_IRQ0 + IRQ_ERROR);
 
   // Clear error status register (requires back-to-back writes).
