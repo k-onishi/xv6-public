@@ -18,10 +18,10 @@
 #define EOI     (0x00B0/4)   // EOI
 #define SVR     (0x00F0/4)   // 仮の割り込みベクタ
   #define ENABLE     0x00000100   // Unit Enable
-#define ESR     (0x0280/4)   // Error Status
+#define ESR     (0x0280/4)   // エラーステータス
 #define ICRLO   (0x0300/4)   // Interrupt Command
   #define INIT       0x00000500   // INIT/RESET
-  #define STARTUP    0x00000600   // Startup IPI
+  #define STARTUP    0x00000600   // IPI(Inter-Processor Interrupt)の起動
   #define DELIVS     0x00001000   // Delivery status
   #define ASSERT     0x00004000   // Assert interrupt (vs deassert)
   #define DEASSERT   0x00000000
@@ -80,20 +80,21 @@ lapicinit(void)
   // マップエラー割り込みをIRQ_ERRORへ
   lapicw(ERROR, T_IRQ0 + IRQ_ERROR);
 
-  // Clear error status register (requires back-to-back writes).
+  // エラーステータスレジスタをクリア(requires back-to-back writes).
   lapicw(ESR, 0);
   lapicw(ESR, 0);
 
-  // Ack any outstanding interrupts.
+  // 割り込みに応答する
   lapicw(EOI, 0);
 
-  // Send an Init Level De-Assert to synchronise arbitration ID's.
+  // 同期的な任意のIDに対して初期レベルの無効化を行う
   lapicw(ICRHI, 0);
   lapicw(ICRLO, BCAST | INIT | LEVEL);
   while(lapic[ICRLO] & DELIVS)
     ;
 
   // Enable interrupts on the APIC (but not on the processor).
+  // APICに対する割り込みを有効化する(CPUに対してではなく)
   lapicw(TPR, 0);
 }
 
