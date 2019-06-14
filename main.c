@@ -21,8 +21,8 @@ main(void)
   kinit1(end, P2V(4*1024*1024)); // 物理ページアロケータ
   kvmalloc();      // カーネルページテーブルの一部をセットアップする
   mpinit();        // 他のCPUを検出する
-  lapicinit();     // 割り込みコントローラ
-  seginit();       // segment descriptors
+  lapicinit();     // 割り込みコントローラの初期化
+  seginit();       // セグメントディスクリプタ
   picinit();       // disable pic
   ioapicinit();    // another interrupt controller
   consoleinit();   // console hardware

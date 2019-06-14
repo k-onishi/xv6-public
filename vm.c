@@ -10,23 +10,24 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
-// Set up CPU's kernel segment descriptors.
-// Run once on entry on each CPU.
+// CPUのカーネルセグメントディスクリプタをセットアップする
+// 各CPUで一度実行される
 void
 seginit(void)
 {
   struct cpu *c;
 
-  // Map "logical" addresses to virtual addresses using identity map.
-  // Cannot share a CODE descriptor for both kernel and user
-  // because it would have to have DPL_USR, but the CPU forbids
-  // an interrupt from CPL=0 to DPL=3.
-  c = &cpus[cpuid()];
-  c->gdt[SEG_KCODE] = SEG(STA_X|STA_R, 0, 0xffffffff, 0);
-  c->gdt[SEG_KDATA] = SEG(STA_W, 0, 0xffffffff, 0);
-  c->gdt[SEG_UCODE] = SEG(STA_X|STA_R, 0, 0xffffffff, DPL_USER);
-  c->gdt[SEG_UDATA] = SEG(STA_W, 0, 0xffffffff, DPL_USER);
-  lgdt(c->gdt, sizeof(c->gdt));
+  // 一意になるようなマップを用いて論理アドレスを仮想アドレスをマッピングする。
+  // コードディスクリプタはカーネルのユーザ間で共有することはできない。
+  // 理由としてはディスクリプタはユーザの権限レベルを保持しなければならないが
+  // CPUは現在の特権レベルからユーザのディスクリプタの権限レベルに割り込みを
+  // 発生させることはできないからである。
+  c = &cpus[cpuid()]; // カレントCPUの"cpu"構造体のデータ
+  c->gdt[SEG_KCODE] = SEG(STA_X|STA_R, 0, 0xffffffff, 0); // カーネルコード(実行可能 | 読み取り可能 (4GB))
+  c->gdt[SEG_KDATA] = SEG(STA_W, 0, 0xffffffff, 0); // カーネルデータ (書き込み可能　(4GB))
+  c->gdt[SEG_UCODE] = SEG(STA_X|STA_R, 0, 0xffffffff, DPL_USER); // ユーザコード(実行可能 | 読み取り可能 (4GB))
+  c->gdt[SEG_UDATA] = SEG(STA_W, 0, 0xffffffff, DPL_USER); // ユーザデータ (書き込み可能　(4GB))
+  lgdt(c->gdt, sizeof(c->gdt)); // セグメントディスクリプタテーブルをGDTR(Segment Descriptor Table)に設定する
 }
 
 // ページディレクトリの仮想アドレスに対応するPTEのアドレスを返す

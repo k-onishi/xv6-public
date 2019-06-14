@@ -26,9 +26,11 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
-// Must be called with interrupts disabled
+// 割り込みを禁止した状態で呼び出さなければならない
+// "cpus"配列のインデックス番号を返す
 int
 cpuid() {
+  // cpus配列のi番目の要素のアドレスからcpus配列のアドレスを減算することでインデックス的な値が取得できる
   return mycpu()-cpus;
 }
 

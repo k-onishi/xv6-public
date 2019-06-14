@@ -11,7 +11,7 @@
 #include "mmu.h"
 #include "proc.h"
 
-struct cpu cpus[NCPU];
+struct cpu cpus[NCPU]; // 各CPUの状態を保持する配列
 int ncpu; // 認識しているCPUの数
 uchar ioapicid;
 

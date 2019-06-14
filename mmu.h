@@ -9,34 +9,34 @@
 #define CR0_WP          0x00010000      // Write Protect
 #define CR0_PG          0x80000000      // Paging
 
-#define CR4_PSE         0x00000010      // Page size extension
+#define CR4_PSE         0x00000010      // 拡張ページング
 
-// various segment selectors.
-#define SEG_KCODE 1  // kernel code
-#define SEG_KDATA 2  // kernel data+stack
-#define SEG_UCODE 3  // user code
-#define SEG_UDATA 4  // user data+stack
-#define SEG_TSS   5  // this process's task state
+// セグメントセレクタ
+#define SEG_KCODE 1  // カーネルコード
+#define SEG_KDATA 2  // カーネルデータ及びスタック
+#define SEG_UCODE 3  // ユーザコード
+#define SEG_UDATA 4  // ユーザデータ及びスタック
+#define SEG_TSS   5  // プロセスのTSS(Task State Segment)
 
-// cpu->gdt[NSEGS] holds the above segments.
-#define NSEGS     6
+// cpu->gdt[NSEGS]で上で定義されているセグメントを保持する
+#define NSEGS     6 // セグメントの数
 
 #ifndef __ASSEMBLER__
-// Segment Descriptor
+// セグメントディスクリプタの構造体
 struct segdesc {
-  uint lim_15_0 : 16;  // Low bits of segment limit
-  uint base_15_0 : 16; // Low bits of segment base address
-  uint base_23_16 : 8; // Middle bits of segment base address
-  uint type : 4;       // Segment type (see STS_ constants)
-  uint s : 1;          // 0 = system, 1 = application
-  uint dpl : 2;        // Descriptor Privilege Level
-  uint p : 1;          // Present
-  uint lim_19_16 : 4;  // High bits of segment limit
-  uint avl : 1;        // Unused (available for software use)
-  uint rsv1 : 1;       // Reserved
-  uint db : 1;         // 0 = 16-bit segment, 1 = 32-bit segment
-  uint g : 1;          // Granularity: limit scaled by 4K when set
-  uint base_31_24 : 8; // High bits of segment base address
+  uint lim_15_0 : 16;  // セグメントのサイズ(20bit)の内の下位16bit
+  uint base_15_0 : 16; // セグメントベースアドレスの下位16bit
+  uint base_23_16 : 8; // セグメントベースアドレスの中間8bit
+  uint type : 4;       // セグメントタイプ (see STS_ constants)
+  uint s : 1;          // 0 = システム, 1 = アプリケーション
+  uint dpl : 2;        // DPL(Descriptor Privilege Level): ディスクリプタ権限レベル
+  uint p : 1;          // 存在しているかどうか
+  uint lim_19_16 : 4;  // セグメントのサイズ(20bit)の内の上位4bit
+  uint avl : 1;        // 未使用(available for software use)
+  uint rsv1 : 1;       // 予約済み
+  uint db : 1;         // 0 = 16bitセグメント, 1 = 32bitセグメント
+  uint g : 1;          // 粒度: 0 = セグメント長はバイト単位, 1 = セグメント長は4Kバイト単位で表現される
+  uint base_31_24 : 8; // セグメントベースアドレスの上位8bit
 };
 
 // Normal segment
@@ -103,7 +103,7 @@ struct segdesc {
 #ifndef __ASSEMBLER__
 typedef uint pte_t;
 
-// Task state segment format
+// タスクステートセグメントのフォーマット(Task State Segment)
 struct taskstate {
   uint link;         // Old ts selector
   uint esp0;         // Stack pointers and segment selectors

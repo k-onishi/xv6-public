@@ -2,15 +2,14 @@
 #include "memlayout.h"
 #include "mmu.h"
 	
-# Each non-boot CPU ("AP") is started up in response to a STARTUP
-# IPI from the boot CPU.  Section B.4.2 of the Multi-Processor
-# Specification says that the AP will start in real mode with CS:IP
-# set to XY00:0000, where XY is an 8-bit value sent with the
-# STARTUP. Thus this code must start at a 4096-byte boundary.
-#
-# Because this code sets DS to zero, it must sit
-# at an address in the low 2^16 bytes.
-#
+# ブートCPU以外の各CPU(AP)はブートCPU(BP)からのIPI(Inter-Processor Interrupt)の"STARTUP"
+# の応答によって起動される。"Multi-Processor Sepcification"によるとAPはリアルモードで
+# IPIで送られてくる8-bitの値で指定された0x**00:0000(CS:IP)から起動する。
+# よってこのコードは4096バイトの境界上で起動する。
+
+# ココのコードがDSに0をセットするため、下位16バイトのアドレスに収まる。
+# Startothers(main.c)は”STARTUP"を1つずつ送信し、
+
 # Startothers (in main.c) sends the STARTUPs one at a time.
 # It copies this code (start) at 0x7000.  It puts the address of
 # a newly allocated per-core stack in start-4,the address of the

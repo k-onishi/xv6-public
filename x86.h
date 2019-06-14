@@ -72,15 +72,19 @@ stosl(void *addr, int data, int cnt)
 
 struct segdesc;
 
+// GDTRをlgdt命令でセットする
 static inline void
 lgdt(struct segdesc *p, int size)
 {
   volatile ushort pd[3];
 
+  // セグメントディスクリプタのアドレス及びサイズを配列に設定
   pd[0] = size-1;
   pd[1] = (uint)p;
   pd[2] = (uint)p >> 16;
 
+  // http://caspar.hazymoon.jp/OpenBSD/annex/intel_segment.html
+  // lgdt(Load GDT)命令でGDTR(Global Descriptor Table Register)をセットする
   asm volatile("lgdt (%0)" : : "r" (pd));
 }
 
@@ -163,21 +167,20 @@ lcr3(uint val)
   asm volatile("movl %0,%%cr3" : : "r" (val));
 }
 
-//PAGEBREAK: 36
-// Layout of the trap frame built on the stack by the
-// hardware and by trapasm.S, and passed to trap().
+// trapasm.Sによってハードウェアのスタック上で構築され、trap()関数に
+// 渡されるトラップフレームのレイアウト。
 struct trapframe {
-  // registers as pushed by pusha
+  // "pusha"によってプッシュされるレジスタ群
   uint edi;
   uint esi;
   uint ebp;
-  uint oesp;      // useless & ignored
+  uint oesp;      // 不必要で無視される
   uint ebx;
   uint edx;
   uint ecx;
   uint eax;
 
-  // rest of trap frame
+  // 残りのトラップフレーム
   ushort gs;
   ushort padding1;
   ushort fs;
@@ -188,14 +191,14 @@ struct trapframe {
   ushort padding4;
   uint trapno;
 
-  // below here defined by x86 hardware
+  // ここから下はx86のハードウェアで定義されている
   uint err;
   uint eip;
   ushort cs;
   ushort padding5;
   uint eflags;
 
-  // below here only when crossing rings, such as from user to kernel
+  // ここから下はユーザモードからカーネルモードへなど、リングレベルをまたぐ
   uint esp;
   ushort ss;
   ushort padding6;
