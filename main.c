@@ -23,7 +23,7 @@ main(void)
   mpinit();        // 他のCPUを検出する
   lapicinit();     // 割り込みコントローラの初期化
   seginit();       // セグメントディスクリプタテーブルの設定
-  picinit();       // disable pic
+  picinit();       // PICの無効化
   ioapicinit();    // another interrupt controller
   consoleinit();   // console hardware
   uartinit();      // serial port
