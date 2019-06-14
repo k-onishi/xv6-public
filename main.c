@@ -22,7 +22,7 @@ main(void)
   kvmalloc();      // カーネルページテーブルの一部をセットアップする
   mpinit();        // 他のCPUを検出する
   lapicinit();     // 割り込みコントローラの初期化
-  seginit();       // セグメントディスクリプタ
+  seginit();       // セグメントディスクリプタテーブルの設定
   picinit();       // disable pic
   ioapicinit();    // another interrupt controller
   consoleinit();   // console hardware
