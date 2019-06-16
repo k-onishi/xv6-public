@@ -161,6 +161,7 @@ rcr2(void)
   return val;
 }
 
+// cr3にページディレクトリorページテーブルの物理アドレスを設定する。
 static inline void
 lcr3(uint val)
 {

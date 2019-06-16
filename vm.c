@@ -166,16 +166,16 @@ setupkvm(void)
 void
 kvmalloc(void)
 {
-  kpgdir = setupkvm();
-  switchkvm();
+  kpgdir = setupkvm(); // ページディレクトリのエントリの初期化
+  switchkvm(); // 
 }
 
-// Switch h/w page table register to the kernel-only page table,
-// for when no process is running.
+// ハードウェアに搭載されているページテーブルレジスタにカーネル専用のページテーブルを設定する。
+// プロセスが動作していない時のために
 void
 switchkvm(void)
 {
-  lcr3(V2P(kpgdir));   // switch to the kernel page table
+  lcr3(V2P(kpgdir)); // cr3にカーネル専用のページテーブルを設定する。
 }
 
 // Switch TSS and h/w page table to correspond to process p.
