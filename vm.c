@@ -7,8 +7,8 @@
 #include "proc.h"
 #include "elf.h"
 
-extern char data[];  // defined by kernel.ld
-pde_t *kpgdir;  // for use in scheduler()
+extern char data[];  // "kernel.ld"で定義される
+pde_t *kpgdir;  // scheduler()内で使用
 
 // CPUのカーネルセグメントディスクリプタをセットアップする
 // 各CPUで一度実行される
@@ -92,34 +92,43 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
   return 0;
 }
 
-// There is one page table per process, plus one that's used when
-// a CPU is not running any process (kpgdir). The kernel uses the
-// current process's page table during system calls and interrupts;
-// page protection bits prevent user code from using the kernel's
-// mappings.
-//
-// setupkvm() and exec() set up every page table like this:
-//
-//   0..KERNBASE: user memory (text+data+stack+heap), mapped to
-//                phys memory allocated by the kernel
-//   KERNBASE..KERNBASE+EXTMEM: mapped to 0..EXTMEM (for I/O space)
-//   KERNBASE+EXTMEM..data: mapped to EXTMEM..V2P(data)
-//                for the kernel's instructions and r/o data
-//   data..KERNBASE+PHYSTOP: mapped to V2P(data)..PHYSTOP,
-//                                  rw data + free physical memory
-//   0xfe000000..0: mapped direct (devices such as ioapic)
-//
-// The kernel allocates physical memory for its heap and for user memory
-// between V2P(end) and the end of physical memory (PHYSTOP)
-// (directly addressable from end..P2V(PHYSTOP)).
+/**
+ * プロセス毎に存在するページテーブルに加え、他のプロセスを動作させない時に
+ * に使用するページテーブルが存在する(kpgdir)。カーネルはカレントプロセスのページテーブル
+ * をシステムコールや割り込み発生時に使用する。ページ保護はbitはユーザ空間のコードがカーネル
+ * 空間のコードを使用を防止している。
+ * 
+ * setupkvm() 及び exec() は全てのページテーブルを次のようにセットアップする。
+ * 
+ * 0~KERNBASE(0x80000000):
+ *    ユーザメモリ領域(テキスト+データ+スタック+ヒープ)。
+ *    カーネルによって適当な物理アドレスにマッピングされる
+ * 
+ * KERNBASE(0x80000000) ~ KERNBASE(0x80000000)+EXTMEM(0x100000):
+ *    物理アドレスの"0~EXTMEM(0x100000)"にマッピングされる(I/O空間)
+ * 
+ * KERNBASE(0x80000000)+EXTMEM(0x100000) ~ data:
+ *    物理アドレスのEXTMEM(0x100000)から"data"の開始アドレス(物理アドレス)の直前までの範囲。
+ *    カーネルのテキストセグメント(命令群)が格納される。読み取り専用。
+ * 
+ * data ~ KERNBASE(0x80000000)+PHYSTOP(0xE000000 = 224MB):
+ *    物理アドレスの"data"の開始アドレスから224MB分の範囲。
+ *    読み書き可能なデータ及び、自由に使用できる物理メモリ
+ * 
+ * DEVSPACE(0xFE000000) ~ :
+ *    ストレートマッピング(ioapicなどのデバイス)
+ * 
+ * カーネルは自身のヒープやユーザメモリを"end"の物理アドレスから
+ * 物理アドレスの終端(PHYSTOP)までのメモリから割り当てる。
+*/
 
 // このテーブルはカーネルのマッピングを定義しており
 // これは全てのプロセスのページテーブルに存在する。
 static struct kmap {
-  void *virt;
-  uint phys_start;
-  uint phys_end;
-  int perm;
+  void *virt; // 仮想アドレス
+  uint phys_start; // 物理アドレスの開始アドレス
+  uint phys_end; // 物理アドレスの終端アドレス
+  int perm; // 権限
 } kmap[] = {
  // I/O空間(カーネル空間(物理アドレスの先頭)から1MB)
  { (void*)KERNBASE, 0,             EXTMEM,    PTE_W}, 
