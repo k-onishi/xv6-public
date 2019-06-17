@@ -333,7 +333,7 @@ freevm(pde_t *pgdir)
   if(pgdir == 0)
     panic("freevm: no pgdir");
   
-  deallocuvm(pgdir, KERNBASE, 0); // ページディレクトリがに対応するページを全て開放する
+  deallocuvm(pgdir, KERNBASE, 0); // ページディレクトリに対応するページを全て開放する
   for(i = 0; i < NPDENTRIES; i++){ // ページディレクトリ内のエントリ数の回数繰り返す
     if(pgdir[i] & PTE_P){ // ページディレクトリエントリが存在している場合
       // ページディレクトリエントリに対応するページ(ページテーブルの仮想アドレスを取得)
