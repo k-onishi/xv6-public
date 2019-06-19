@@ -25,8 +25,7 @@ struct inode {
   uint addrs[NDIRECT+1];
 };
 
-// table mapping major device number to
-// device functions
+// メジャーデバイス番号とそれに対応する関数がマッピングされたテーブル
 struct devsw {
   int (*read)(struct inode*, char*, int);
   int (*write)(struct inode*, char*, int);
@@ -34,4 +33,5 @@ struct devsw {
 
 extern struct devsw devsw[];
 
+// メジャーデバイス(計10個)のウチのコンソールデバイスに対応する番号
 #define CONSOLE 1

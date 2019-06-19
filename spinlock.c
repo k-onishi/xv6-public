@@ -100,7 +100,7 @@ holding(struct spinlock *lock)
 }
 
 // pushcli/popcliはマッチする以外はcli/sti命令と同様の動作をする命令である。
-// 2回分のpushcliｗ開放するには2回分のpopcliを必要とする。もし割り込みが禁止されていれば
+// 2回分のpushcli()開放するには2回分のpopcli()を必要とする。もし割り込みが禁止されていれば
 // pushcli, popcli共に割り込みを禁止したままとなる。
 
 // 割り込み禁止カウンタをインクリメント

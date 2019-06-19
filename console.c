@@ -19,7 +19,7 @@ static void consputc(int);
 
 static int panicked = 0;
 
-// ロック
+// コンソール用のロック
 static struct {
   struct spinlock lock;
   int locking;
@@ -271,25 +271,27 @@ consoleread(struct inode *ip, char *dst, int n)
   return target - n;
 }
 
+// コンソール用のwrite関数
 int
 consolewrite(struct inode *ip, char *buf, int n)
 {
   int i;
 
-  iunlock(ip);
-  acquire(&cons.lock);
+  iunlock(ip); // 指定inodeのスリープロックを開放し、その上でスリープしているプロセスを起床させる
+  acquire(&cons.lock); // スピンロックを取得
   for(i = 0; i < n; i++)
     consputc(buf[i] & 0xff);
-  release(&cons.lock);
+  release(&cons.lock); // スピンロックを開放
   ilock(ip);
 
   return n;
 }
 
+// コンソールの初期化
 void
 consoleinit(void)
 {
-  initlock(&cons.lock, "console");
+  initlock(&cons.lock, "console"); // コンソール用のロックを初期化
 
   devsw[CONSOLE].write = consolewrite;
   devsw[CONSOLE].read = consoleread;

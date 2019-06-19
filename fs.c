@@ -312,13 +312,17 @@ ilock(struct inode *ip)
   }
 }
 
-// Unlock the given inode.
+// 指定されたinodeのロックを開放する
 void
 iunlock(struct inode *ip)
 {
+  // inodeのポインタが何も参照していない ||
+  // カレントプロセスがロックを取得していない ||
+  // 当該inodeが参照されていない場合
   if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
     panic("iunlock");
 
+  // スリープロックを開放し、そのロック上でスリープしているプロセスを起床させる。
   releasesleep(&ip->lock);
 }
 

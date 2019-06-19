@@ -8,9 +8,9 @@
 #include "spinlock.h"
 
 struct {
-  struct spinlock lock;
-  struct proc proc[NPROC];
-} ptable;
+  struct spinlock lock; // スピンロック
+  struct proc proc[NPROC]; // システム上で生成可能なプロセス数分のプロセス構造体変数
+} ptable; // Process Table ??
 
 static struct proc *initproc;
 
@@ -54,16 +54,16 @@ mycpu(void)
   panic("unknown apicid\n");
 }
 
-// Disable interrupts so that we are not rescheduled
-// while reading proc from the cpu structure
-struct proc*
-myproc(void) {
+// カレントプロセスを取得
+// 割り込みを無効にしないとCPU構造体からprocを読んでいる間
+// 再スケジュールされない。
+struct proc* myproc(void) {
   struct cpu *c;
   struct proc *p;
-  pushcli();
-  c = mycpu();
-  p = c->proc;
-  popcli();
+  pushcli(); // ロックを取得
+  c = mycpu(); // 当該CPUを取得
+  p = c->proc; // 当該CPU上で動作しているプロセス=カレントプロセスの構造体を取得
+  popcli(); // ロックを開放
   return p;
 }
 
@@ -454,16 +454,16 @@ sleep(void *chan, struct spinlock *lk)
 }
 
 //PAGEBREAK!
-// Wake up all processes sleeping on chan.
-// The ptable lock must be held.
-static void
-wakeup1(void *chan)
+// chan上でスリープしているプロセスを全て起床させる。
+// ptableがロックされている必要がある
+static void wakeup1(void *chan)
 {
   struct proc *p;
 
+  // プロセステーブルのプロセスをトラバース
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
-      p->state = RUNNABLE;
+    if(p->state == SLEEPING && p->chan == chan) // chanが同一でスリープしている場合
+      p->state = RUNNABLE; // "実行可能"にする
 }
 
 // Wake up all processes sleeping on chan.

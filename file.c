@@ -10,6 +10,7 @@
 #include "sleeplock.h"
 #include "file.h"
 
+// 10個のメジャーデバイスに対応する"read"及び"write"関数を保持した構造体の配列
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
