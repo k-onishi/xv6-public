@@ -283,18 +283,18 @@ idup(struct inode *ip)
   return ip;
 }
 
-// Lock the given inode.
-// Reads the inode from disk if necessary.
-void
-ilock(struct inode *ip)
+// 指定されたinodeをロックする。
+// 必要であればディスクからinodeを読み込む
+void ilock(struct inode *ip)
 {
   struct buf *bp;
   struct dinode *dip;
 
+  // inodeがゼロに、参照されていなかった場合
   if(ip == 0 || ip->ref < 1)
     panic("ilock");
 
-  acquiresleep(&ip->lock);
+  acquiresleep(&ip->lock); // ロックが取得できるまでスリープして待機
 
   if(ip->valid == 0){
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));

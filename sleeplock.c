@@ -10,8 +10,8 @@
 #include "spinlock.h"
 #include "sleeplock.h"
 
-void
-initsleeplock(struct sleeplock *lk, char *name)
+// スリープロックの初期化
+void initsleeplock(struct sleeplock *lk, char *name)
 {
   initlock(&lk->lk, "sleep lock");
   lk->name = name;
@@ -19,16 +19,16 @@ initsleeplock(struct sleeplock *lk, char *name)
   lk->pid = 0;
 }
 
-void
-acquiresleep(struct sleeplock *lk)
+// ロックが取得できるまでスリープして待つ(カレントプロセス)
+void acquiresleep(struct sleeplock *lk)
 {
-  acquire(&lk->lk);
-  while (lk->locked) {
-    sleep(lk, &lk->lk);
+  acquire(&lk->lk); // ロックを取得する
+  while (lk->locked) { // ロックされている間
+    sleep(lk, &lk->lk); // カレントプロセスをスリープさせる
   }
-  lk->locked = 1;
-  lk->pid = myproc()->pid;
-  release(&lk->lk);
+  lk->locked = 1; // ロックが取得されている状態を記録
+  lk->pid = myproc()->pid; // ロックを取得しているプロセスのPID
+  release(&lk->lk); // ロックを開放する
 }
 
 // スリープロックを開放し、そのロック上でスリープしているプロセスを起床させる
@@ -42,8 +42,7 @@ void releasesleep(struct sleeplock *lk)
 }
 
 // カレントプロセスがスリープロック(長い期間のロック)を保持しているかどうか
-int
-holdingsleep(struct sleeplock *lk)
+int holdingsleep(struct sleeplock *lk)
 {
   int r;
   

@@ -8,18 +8,17 @@ struct file {
   uint off;
 };
 
-
-// in-memory copy of an inode
+// inodeのメモリ上のコピー
 struct inode {
-  uint dev;           // Device number
-  uint inum;          // Inode number
-  int ref;            // Reference count
-  struct sleeplock lock; // protects everything below here
-  int valid;          // inode has been read from disk?
+  uint dev;           // デバイス番号
+  uint inum;          // inode番号
+  int ref;            // 参照カウンタ
+  struct sleeplock lock; // ここから下の全てのメンバを保護するためのロック
+  int valid;          // inodeがディスクから読み込まれているか
 
-  short type;         // copy of disk inode
-  short major;
-  short minor;
+  short type;         // ディスクinodeのコピー
+  short major;        // メジャー番号
+  short minor;        // マイナー番号
   short nlink;
   uint size;
   uint addrs[NDIRECT+1];

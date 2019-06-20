@@ -414,42 +414,43 @@ forkret(void)
   // Return to "caller", actually trapret (see allocproc).
 }
 
-// Atomically release lock and sleep on chan.
-// Reacquires lock when awakened.
+// 自動的にロックを開放し、チャンネル上でスリープする
+// 起床された時にロックを要求とする
 void
 sleep(void *chan, struct spinlock *lk)
 {
-  struct proc *p = myproc();
-  
+  struct proc *p = myproc(); // カレントプロセスを取得
+
+  // カレントプロセスを取得できなかった場合
   if(p == 0)
     panic("sleep");
 
+  // ロックが指定されていない
   if(lk == 0)
     panic("sleep without lk");
 
-  // Must acquire ptable.lock in order to
-  // change p->state and then call sched.
-  // Once we hold ptable.lock, we can be
-  // guaranteed that we won't miss any wakeup
-  // (wakeup runs with ptable.lock locked),
-  // so it's okay to release lk.
-  if(lk != &ptable.lock){  //DOC: sleeplock0
-    acquire(&ptable.lock);  //DOC: sleeplock1
-    release(lk);
+  // p->stateを変更し、sched()を呼び出すため
+  // ptable.lockを獲得しなければならない
+  // ptable.lockを保持するとwakeup()で起こされる
+  // ことが保証され(wakeup()はptable.lockが取得された状態で動作する)
+  // よってロックを開放しても問題がない
+  if(lk != &ptable.lock){  // ptableのロックでなかった場合
+    acquire(&ptable.lock);  // ptableのロックを取得
+    release(lk); // 関連のないであろうロックを開放
   }
-  // Go to sleep.
-  p->chan = chan;
-  p->state = SLEEPING;
+  // スリープへ
+  p->chan = chan; // チャンネルを設定
+  p->state = SLEEPING; // ステートをスリープ状態に
 
-  sched();
+  sched(); // 再スケジューリング
 
-  // Tidy up.
+  // チャンネルをクリア
   p->chan = 0;
 
-  // Reacquire original lock.
+  // 元々取得していたロックを再要求
   if(lk != &ptable.lock){  //DOC: sleeplock2
-    release(&ptable.lock);
-    acquire(lk);
+    release(&ptable.lock); // ptable.lockを開放
+    acquire(lk); // 元々取得していたロックを再度取得
   }
 }
 

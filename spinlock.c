@@ -10,13 +10,12 @@
 #include "spinlock.h"
 
 
-// ロック変数の初期化関数
-void
-initlock(struct spinlock *lk, char *name)
+// スピンロック変数の初期化関数
+void initlock(struct spinlock *lk, char *name)
 {
-  lk->name = name;
-  lk->locked = 0;
-  lk->cpu = 0;
+  lk->name = name; // ロックの名前
+  lk->locked = 0; // ロックが取得されているかどうか
+  lk->cpu = 0; // CPU番号
 }
 
 // ロックを取得する
