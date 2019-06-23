@@ -3,39 +3,38 @@
 
 
 #define ROOTINO 1  // root i-number
-#define BSIZE 512  // block size
+#define BSIZE 512  // ブロックのサイズ
 
-// Disk layout:
-// [ boot block | super block | log | inode blocks |
-//                                          free bit map | data blocks]
-//
-// mkfs computes the super block and builds an initial file system. The
-// super block describes the disk layout:
+// ディスクのレイアウト:
+// [ブートブロック | スーパーブロック | ログ | inodeブロック | フリービットマップ | データブロック]
+// 
+// mkfsコマンドはスーパーブロックを研鑽し、初期ファイルシステムを構築する。
+// そのスーパーブロックはディスクのレイアウトを表現している
 struct superblock {
-  uint size;         // Size of file system image (blocks)
-  uint nblocks;      // Number of data blocks
-  uint ninodes;      // Number of inodes.
-  uint nlog;         // Number of log blocks
-  uint logstart;     // Block number of first log block
-  uint inodestart;   // Block number of first inode block
-  uint bmapstart;    // Block number of first free map block
+  uint size;         // システムイメージのサイズ(ブロック数)
+  uint nblocks;      // データブロックの数
+  uint ninodes;      // inodeの数.
+  uint nlog;         // ログブロックの数
+  uint logstart;     // 初期ログブロックの数
+  uint inodestart;   // 初期inodeブロックの数
+  uint bmapstart;    // 初期フリーマップブロックの数
 };
 
-#define NDIRECT 12
-#define NINDIRECT (BSIZE / sizeof(uint))
-#define MAXFILE (NDIRECT + NINDIRECT)
+#define NDIRECT 12 // Not DIRECT
+#define NINDIRECT (BSIZE / sizeof(uint)) // Not IN-DIRECT (16)
+#define MAXFILE (NDIRECT + NINDIRECT) // 28
 
-// On-disk inode structure
+// ディスク上のinodeの構造体
 struct dinode {
-  short type;           // File type
-  short major;          // Major device number (T_DEV only)
-  short minor;          // Minor device number (T_DEV only)
-  short nlink;          // Number of links to inode in file system
-  uint size;            // Size of file (bytes)
-  uint addrs[NDIRECT+1];   // Data block addresses
+  short type;           // ファイル種別
+  short major;          // デバイスのメジャー番号(T_DEV only)
+  short minor;          // デバイスのマイナー番号(T_DEV only)
+  short nlink;          // ファイルシステム内のinodeのリンク数
+  uint size;            // ファイルサイズ(バイト)
+  uint addrs[NDIRECT+1];   // データブロックアドレスのリスト
 };
 
-// Inodes per block.
+// ブロック毎のinodeの数(Inode Per Block)
 #define IPB           (BSIZE / sizeof(struct dinode))
 
 // Block containing inode i

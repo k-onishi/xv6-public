@@ -13,16 +13,18 @@
 #include "fs.h"
 #include "buf.h"
 
-#define SECTOR_SIZE   512
-#define IDE_BSY       0x80
-#define IDE_DRDY      0x40
-#define IDE_DF        0x20
-#define IDE_ERR       0x01
+#define SECTOR_SIZE   512 // セクタサイズ
 
-#define IDE_CMD_READ  0x20
-#define IDE_CMD_WRITE 0x30
-#define IDE_CMD_RDMUL 0xc4
-#define IDE_CMD_WRMUL 0xc5
+// ftp://ftp.seagate.com/acrobat/reference/111-1c.pdf
+#define IDE_BSY       0x80 // BUSY
+#define IDE_DRDY      0x40 // DRIVE READY
+#define IDE_DF        0x20 // DRIVE WRITE FAULT
+#define IDE_ERR       0x01 // ERROR
+
+#define IDE_CMD_READ  0x20 // 読み込み
+#define IDE_CMD_WRITE 0x30 // 書き込み
+#define IDE_CMD_RDMUL 0xc4 // 読み込み(複数)
+#define IDE_CMD_WRMUL 0xc5 // 書き込み(複数)
 
 // idequeue points to the buf now being read/written to the disk.
 // idequeue->qnext points to the next buf to be processed.
@@ -34,14 +36,18 @@ static struct buf *idequeue;
 static int havedisk1;
 static void idestart(struct buf*);
 
-// Wait for IDE disk to become ready.
+// IDEディスクが準備完了になるまで待機
 static int
 idewait(int checkerr)
 {
   int r;
 
+  // Data Register(0x1F7)がマッピングされているポートからデータを読み込み
+  // DRIVE READYの状態でなければ繰り返す
   while(((r = inb(0x1f7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
     ;
+  
+  // エラーチェックが指定されており、書き込みエラーまたは一般的なエラーが発生している場合
   if(checkerr && (r & (IDE_DF|IDE_ERR)) != 0)
     return -1;
   return 0;
@@ -69,33 +75,44 @@ ideinit(void)
   outb(0x1f6, 0xe0 | (0<<4));
 }
 
-// Start the request for b.  Caller must hold idelock.
+// バッファのためのリクエストを開始する。
+// 呼び出し側はideのロックを取得しておく必要がある
 static void
 idestart(struct buf *b)
 {
+  // バッファキャッシュの指定なし
   if(b == 0)
     panic("idestart");
+  
+  // ブロック番号が無効である場合
   if(b->blockno >= FSSIZE)
     panic("incorrect blockno");
-  int sector_per_block =  BSIZE/SECTOR_SIZE;
-  int sector = b->blockno * sector_per_block;
+  
+  // 単一ブロック内のセクタ数の算出及びセクタ番号の算出
+  int sector_per_block =  BSIZE/SECTOR_SIZE; // ブロック内のセクタ数(== 1)
+  int sector = b->blockno * sector_per_block; // ブロック番号から読み出すセクタの位置を算出
+
+  // セクタサイズとブロックサイズが同じ場合には単一の読み込み
   int read_cmd = (sector_per_block == 1) ? IDE_CMD_READ :  IDE_CMD_RDMUL;
   int write_cmd = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;
 
+  // セクタ数が多すぎる
   if (sector_per_block > 7) panic("idestart");
 
-  idewait(0);
-  outb(0x3f6, 0);  // generate interrupt
-  outb(0x1f2, sector_per_block);  // number of sectors
-  outb(0x1f3, sector & 0xff);
-  outb(0x1f4, (sector >> 8) & 0xff);
-  outb(0x1f5, (sector >> 16) & 0xff);
-  outb(0x1f6, 0xe0 | ((b->dev&1)<<4) | ((sector>>24)&0x0f));
-  if(b->flags & B_DIRTY){
-    outb(0x1f7, write_cmd);
-    outsl(0x1f0, b->data, BSIZE/4);
+  idewait(0); // ディスクが準備完了状態になるまで待機
+  // https://wiki.osdev.org/ATA_PIO_Mode
+  outb(0x3f6, 0);  // 一般的な割り込み
+  outb(0x1f2, sector_per_block);  // セクタ数
+  outb(0x1f3, sector & 0xff); // LBAの下位8bit
+  outb(0x1f4, (sector >> 8) & 0xff); // LBAの9~16bit
+  outb(0x1f5, (sector >> 16) & 0xff); // LBAの17~24bit
+  // master == 0xE0, slave == 0xF0
+  outb(0x1f6, 0xe0 | ((b->dev&1)<<4) | ((sector>>24)&0x0f)); // LBAの上位4bit(25~28)及び
+  if(b->flags & B_DIRTY){ // バッファの書き込みが必要である場合
+    outb(0x1f7, write_cmd); // 書き込みコマンドを設定
+    outsl(0x1f0, b->data, BSIZE/4); // 実際に書き込み(一度に4バイト送信するためブロックサイズを4で除算する)
   } else {
-    outb(0x1f7, read_cmd);
+    outb(0x1f7, read_cmd); // 読み込み
   }
 }
 
@@ -131,38 +148,44 @@ ideintr(void)
 }
 
 //PAGEBREAK!
-// Sync buf with disk.
-// If B_DIRTY is set, write buf to disk, clear B_DIRTY, set B_VALID.
-// Else if B_VALID is not set, read buf from disk, set B_VALID.
-void
-iderw(struct buf *b)
+// ディスクとバッファの内容を同期させる
+// B_DIRTYがセットされている場合はバッファをディスクに書き込み、B_DIRTYフラグ
+// をクリアした後、B_VALIDをセットする
+// もしB_VALIDがセットされていない場合にはディスクからバッファを読み込み、B_DIRTYフラグ
+// をセットする
+void iderw(struct buf *b)
 {
   struct buf **pp;
 
+  // バッファのロックがされていない場合
   if(!holdingsleep(&b->lock))
     panic("iderw: buf not locked");
+  
+  // バッファが有効である場合、何もする必要がない
   if((b->flags & (B_VALID|B_DIRTY)) == B_VALID)
     panic("iderw: nothing to do");
+
+  // disk1を保持していない場合
   if(b->dev != 0 && !havedisk1)
     panic("iderw: ide disk 1 not present");
 
+  // ディスクのロックを行う
   acquire(&idelock);  //DOC:acquire-lock
 
-  // Append b to idequeue.
   b->qnext = 0;
+  // リストの末尾へ移動
   for(pp=&idequeue; *pp; pp=&(*pp)->qnext)  //DOC:insert-queue
     ;
-  *pp = b;
+  *pp = b; // バッファキャッシュをideキューの最後尾へ
 
-  // Start disk if necessary.
-  if(idequeue == b)
+  // 必要であればディスクを起動する
+  if(idequeue == b) // バッファキャッシュがideキューの先頭要素だった場合
     idestart(b);
 
-  // Wait for request to finish.
-  while((b->flags & (B_VALID|B_DIRTY)) != B_VALID){
-    sleep(b, &idelock);
+  // リスクエストが完了するまで待機
+  while((b->flags & (B_VALID|B_DIRTY)) != B_VALID){ // バッファが有効になるまで待機
+    sleep(b, &idelock); // 待機
   }
 
-
-  release(&idelock);
+  release(&idelock); // IDEのロックを開放
 }

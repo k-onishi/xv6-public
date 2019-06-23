@@ -23,8 +23,9 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode*);
-// there should be one superblock per disk device, but we run with
-// only one device
+
+// 各ディスクに一つのスーパーブロックが存在する
+// しかし単一のディスクしか使用しない
 struct superblock sb; 
 
 // Read the super block.
@@ -296,7 +297,8 @@ void ilock(struct inode *ip)
 
   acquiresleep(&ip->lock); // ロックが取得できるまでスリープして待機
 
-  if(ip->valid == 0){
+  /* inodeが読み込まれていない場合、inodeを読み込み構造体にデータを設定する */
+  if(ip->valid == 0){ // inodeが読み込まれていない場合
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;

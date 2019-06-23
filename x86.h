@@ -1,10 +1,11 @@
 // Routines to let C code use special x86 instructions.
 
-static inline uchar
-inb(ushort port)
+// 指定のポートからデータを読み込む
+static inline uchar inb(ushort port)
 {
   uchar data;
 
+  // https://c9x.me/x86/html/file_module_x86_id_139.html
   asm volatile("in %1,%0" : "=a" (data) : "d" (port));
   return data;
 }
@@ -29,18 +30,20 @@ insl(int port, void *addr, int cnt)
                "memory", "cc");
 }
 
-static inline void
-outb(ushort port, uchar data)
+// 指定のI/Oポートにデータ(1バイト)を書き込む
+static inline void outb(ushort port, uchar data)
 {
   asm volatile("out %0,%1" : : "a" (data), "d" (port));
 }
 
+// 指定のI/Oポートにデータ(2バイト)を書き込む
 static inline void
 outw(ushort port, ushort data)
 {
   asm volatile("out %0,%1" : : "a" (data), "d" (port));
 }
 
+// 指定ポートに指定アドレスからのデータ(4バイト)を指定回数書き込む
 static inline void
 outsl(int port, const void *addr, int cnt)
 {

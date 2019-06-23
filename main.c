@@ -24,7 +24,7 @@ main(void)
   lapicinit();     // 割り込みコントローラの初期化
   seginit();       // セグメントディスクリプタテーブルの設定
   picinit();       // PICの無効化
-  ioapicinit();    // another interrupt controller
+  ioapicinit();    // I/O APICお初期化
   consoleinit();   // console hardware
   uartinit();      // serial port
   pinit();         // process table

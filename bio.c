@@ -27,11 +27,11 @@
 #include "buf.h"
 
 struct {
-  struct spinlock lock;
-  struct buf buf[NBUF];
+  struct spinlock lock; // ロック用の変数
+  struct buf buf[NBUF]; // バッファキャッシュのリスト
 
-  // Linked list of all buffers, through prev/next.
-  // head.next is most recently used.
+  // 全てのバッファの双方向リスト
+  // head.nextが一番最近使用したものになる
   struct buf head;
 } bcache;
 
@@ -55,52 +55,56 @@ binit(void)
   }
 }
 
-// Look through buffer cache for block on device dev.
-// If not found, allocate a buffer.
-// In either case, return locked buffer.
-static struct buf*
-bget(uint dev, uint blockno)
+// デバイスのブロックがバッファキャッシュに存在する確認し
+// もしなければバッファを割り当てる
+// もし存在すればロックされたバッファを返す。
+static struct buf* bget(uint dev, uint blockno)
 {
   struct buf *b;
 
-  acquire(&bcache.lock);
+  acquire(&bcache.lock); // バッファキャッシュリスト用のロックを取得
 
   // Is the block already cached?
+  // ブロックキャッシュのリストをトラバースしていく
   for(b = bcache.head.next; b != &bcache.head; b = b->next){
+    // デバイス番号及びブロック番号が同じ場合
     if(b->dev == dev && b->blockno == blockno){
-      b->refcnt++;
-      release(&bcache.lock);
-      acquiresleep(&b->lock);
-      return b;
+      b->refcnt++; // 参照回数をインクリメント
+      release(&bcache.lock); // ロックを開放
+      acquiresleep(&b->lock); // バッファをロックできるまで待機
+      return b; // バッファキャッシュを返す
     }
   }
 
-  // Not cached; recycle an unused buffer.
-  // Even if refcnt==0, B_DIRTY indicates a buffer is in use
-  // because log.c has modified it but not yet committed it.
+  // キャッシュされていない場合、使用されていないバッファをリサイクルする。
+  // 参照カウンタ(refcnt)が0であっても、flagsに"B_DIRTY"が設定されている場合は
+  // バッファは使用中であることを示す、なせなら
+  // log.cは変更されているがコミットしていないためである。
+  // バッファキャッシュのリストを使用頻度の低い順にトラバースしていく
   for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
+    // 参照カウンタが0且つflagsにB_DIRTYが設定されていない == 使用されていない
     if(b->refcnt == 0 && (b->flags & B_DIRTY) == 0) {
-      b->dev = dev;
-      b->blockno = blockno;
-      b->flags = 0;
-      b->refcnt = 1;
-      release(&bcache.lock);
-      acquiresleep(&b->lock);
-      return b;
+      b->dev = dev; // デバイス番号
+      b->blockno = blockno; // ブロック番号
+      b->flags = 0; // フラグをクリア
+      b->refcnt = 1; // 参照カウンタを設定
+      release(&bcache.lock); // バッファキャッシュのロックを開放
+      acquiresleep(&b->lock); // バッファキャッシュリストのロックを取得
+      return b; // バッファキャッシュを返す
     }
   }
-  panic("bget: no buffers");
+  panic("bget: no buffers"); // キャッシュが見つからなかった
 }
 
-// Return a locked buf with the contents of the indicated block.
+// 指定のブロックデータを保持するバッファをロックされた状態で返す
 struct buf*
 bread(uint dev, uint blockno)
 {
   struct buf *b;
 
-  b = bget(dev, blockno);
-  if((b->flags & B_VALID) == 0) {
-    iderw(b);
+  b = bget(dev, blockno); // バッファキャッシュを取得(既存または新規取得したもの)
+  if((b->flags & B_VALID) == 0) { // バッファが有効である場合
+    iderw(b); // バッファのデータをディスクに書き出す
   }
   return b;
 }
