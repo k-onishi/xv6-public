@@ -282,7 +282,7 @@ consolewrite(struct inode *ip, char *buf, int n)
   for(i = 0; i < n; i++)
     consputc(buf[i] & 0xff);
   release(&cons.lock); // スピンロックを開放
-  ilock(ip);
+  ilock(ip); // 指定のinodeをロックする(読み込まれていない場合はディスクから読み込む)
 
   return n;
 }
@@ -291,7 +291,8 @@ consolewrite(struct inode *ip, char *buf, int n)
 void
 consoleinit(void)
 {
-  initlock(&cons.lock, "console"); // コンソール用のロックを初期化
+  // コンソール用のロックを初期化
+  initlock(&cons.lock, "console");
 
   devsw[CONSOLE].write = consolewrite;
   devsw[CONSOLE].read = consoleread;

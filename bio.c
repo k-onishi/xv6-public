@@ -119,28 +119,36 @@ bwrite(struct buf *b)
   iderw(b);
 }
 
-// Release a locked buffer.
-// Move to the head of the MRU list.
+// ロックされたバッファを開放する
+// MRU(Most Recently Used)リストの先頭に返す
 void
 brelse(struct buf *b)
 {
+  // ロックを保持していないということはありえない
   if(!holdingsleep(&b->lock))
     panic("brelse");
 
+  // 当該ロック待ちのプロセスを起床させる
   releasesleep(&b->lock);
 
+  // バッファキャッシュのリストのロックを取得
   acquire(&bcache.lock);
-  b->refcnt--;
+  b->refcnt--; // バッファを開放するので参照カウンタをデクリメント
+
+  // 参照カウンタが0の場合はバッファキャッシュリストの先頭に繋ぐ
   if (b->refcnt == 0) {
-    // no one is waiting for it.
+    // 当該バッファキャッシュの前後の要素を繋ぐ
     b->next->prev = b->prev;
     b->prev->next = b->next;
+
+    // 当該バッファキャッシュをリストの先頭に繋ぐ
     b->next = bcache.head.next;
     b->prev = &bcache.head;
     bcache.head.next->prev = b;
     bcache.head.next = b;
   }
   
+  // バッファキャッシュリストのロックを開放
   release(&bcache.lock);
 }
 //PAGEBREAK!

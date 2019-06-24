@@ -21,7 +21,7 @@ struct inode {
   short minor;        // マイナー番号
   short nlink;
   uint size;
-  uint addrs[NDIRECT+1];
+  uint addrs[NDIRECT+1]; // 
 };
 
 // メジャーデバイス番号とそれに対応する関数がマッピングされたテーブル

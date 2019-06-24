@@ -37,7 +37,8 @@ struct dinode {
 // ブロック毎のinodeの数(Inode Per Block)
 #define IPB           (BSIZE / sizeof(struct dinode))
 
-// Block containing inode i
+// ブロックが保持している"i"番のブロック
+// inode番号をブロックが保持するinode数で除算し、inodeの開始位置のインデックスを加算する
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
 
 // Bitmap bits per block

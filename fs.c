@@ -299,16 +299,26 @@ void ilock(struct inode *ip)
 
   /* inodeが読み込まれていない場合、inodeを読み込み構造体にデータを設定する */
   if(ip->valid == 0){ // inodeが読み込まれていない場合
+
+    // 指定デバイス内にある指定番号のinodeのデータをバッファに読み込む
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+
+    // ディスク上にあるinodeのデータ構造を読み込む
     dip = (struct dinode*)bp->data + ip->inum%IPB;
+
+    // inode構造体にデータを代入
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;
     ip->nlink = dip->nlink;
     ip->size = dip->size;
+
+    // ディスク上にあるinodeの構造体が保持するデータをinode構造体に移す
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
-    brelse(bp);
-    ip->valid = 1;
+    brelse(bp); // バッファを開放しリストの先頭に繋ぎ直す
+    ip->valid = 1; // 利用可能フラグをセット
+
+    // タイプが無効である場合
     if(ip->type == 0)
       panic("ilock: no type");
   }

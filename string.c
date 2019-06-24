@@ -28,6 +28,7 @@ memcmp(const void *v1, const void *v2, uint n)
   return 0;
 }
 
+// "src"から"dst"へ"n"バイト分のデータを移す
 void*
 memmove(void *dst, const void *src, uint n)
 {
@@ -36,6 +37,7 @@ memmove(void *dst, const void *src, uint n)
 
   s = src;
   d = dst;
+
   if(s < d && s + n > d){
     s += n;
     d += n;
