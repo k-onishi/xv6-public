@@ -115,8 +115,8 @@ lapiceoi(void)
     lapicw(EOI, 0);
 }
 
-// Spin for a given number of microseconds.
-// On real hardware would want to tune this dynamically.
+// 指定音マイクロ秒スピンする
+// 物理機器では動的に調節される
 void
 microdelay(int us)
 {

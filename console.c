@@ -17,6 +17,7 @@
 
 static void consputc(int);
 
+// ??
 static int panicked = 0;
 
 // コンソール用のロック
@@ -167,7 +168,7 @@ void
 consputc(int c)
 {
   if(panicked){
-    cli();
+    cli(); // 割り込みを禁止に無限ループ
     for(;;)
       ;
   }

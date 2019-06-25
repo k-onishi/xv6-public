@@ -12,9 +12,12 @@
 #include "proc.h"
 #include "x86.h"
 
+// http://philipstorr.id.au/pcbook/book2/serial.htm
+// COMポート1がI/Oアドレスの0x3FB~0x3FFに割り当てられる(IRQは4)
 #define COM1    0x3f8
 
-static int uart;    // is there a uart?
+// UARTが存在するかどうか
+static int uart;
 
 void
 uartinit(void)
@@ -53,8 +56,12 @@ uartputc(int c)
 {
   int i;
 
+  // UARTが存在しない場合には何もせず
   if(!uart)
     return;
+  
+  // https://docs.freebsd.org/doc/3.0-RELEASE/usr/share/doc/ja/handbook/cy.html
+  // iが128以下且つTransmitter Holding Register Empty (THRE)が0である
   for(i = 0; i < 128 && !(inb(COM1+5) & 0x20); i++)
     microdelay(10);
   outb(COM1+0, c);
