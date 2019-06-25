@@ -51,6 +51,7 @@ uartinit(void)
     uartputc(*p);
 }
 
+// COMポート1から指定のデータを送信する
 void
 uartputc(int c)
 {
@@ -63,7 +64,10 @@ uartputc(int c)
   // https://docs.freebsd.org/doc/3.0-RELEASE/usr/share/doc/ja/handbook/cy.html
   // iが128以下且つTransmitter Holding Register Empty (THRE)が0である
   for(i = 0; i < 128 && !(inb(COM1+5) & 0x20); i++)
-    microdelay(10);
+    microdelay(10); // 待機
+  
+  // Transmit Holding Register (THR)
+  // このポートに書き込まれた情報はデータ命令として処理されUARTにより送信されます.
   outb(COM1+0, c);
 }
 

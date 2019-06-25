@@ -173,10 +173,11 @@ consputc(int c)
       ;
   }
 
+  // バックスペースの場合、単語区切り文字で挟んだスペースを送信
   if(c == BACKSPACE){
     uartputc('\b'); uartputc(' '); uartputc('\b');
   } else
-    uartputc(c);
+    uartputc(c); // 指定の文字をCOMポートに送信
   cgaputc(c);
 }
 
