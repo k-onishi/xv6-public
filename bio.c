@@ -33,23 +33,29 @@ struct {
   // 全てのバッファの双方向リスト
   // head.nextが一番最近使用したものになる
   struct buf head;
-} bcache;
+} bcache; // バッファキャッシュ
 
+// 双方向のキャッシュリストの初期化
 void
 binit(void)
 {
   struct buf *b;
 
+  // バッファキャッシュ用ロックの初期化
   initlock(&bcache.lock, "bcache");
 
 //PAGEBREAK!
-  // Create linked list of buffers
+  // 双方向のバッファリストの作成
+  // ヘッドで前後を初期化
   bcache.head.prev = &bcache.head;
   bcache.head.next = &bcache.head;
+
+  // バッファリストを初期化
   for(b = bcache.buf; b < bcache.buf+NBUF; b++){
+    // headとその次の要素との間に繋ぐ
     b->next = bcache.head.next;
     b->prev = &bcache.head;
-    initsleeplock(&b->lock, "buffer");
+    initsleeplock(&b->lock, "buffer"); // ロックの初期化
     bcache.head.next->prev = b;
     bcache.head.next = b;
   }

@@ -23,7 +23,7 @@ static int panicked = 0;
 // コンソール用のロック
 static struct {
   struct spinlock lock;
-  int locking;
+  int locking; // ロックが必要かどうか
 } cons;
 
 static void
@@ -126,7 +126,9 @@ panic(char *s)
 }
 
 //PAGEBREAK: 50
-#define BACKSPACE 0x100
+#define BACKSPACE 0x100 // charcode of backspace
+
+// https://wiki.osdev.org/VGA_Hardware#Port_0x3C4.2C_0x3CE.2C_0x3D4
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
@@ -181,14 +183,16 @@ consputc(int c)
   cgaputc(c);
 }
 
+// 入力用のバッファ
 #define INPUT_BUF 128
 struct {
-  char buf[INPUT_BUF];
+  char buf[INPUT_BUF]; // リングバッファ
   uint r;  // Read index
   uint w;  // Write index
   uint e;  // Edit index
 } input;
 
+// "Ctrl"とxを押した場合のキーコード
 #define C(x)  ((x)-'@')  // Control-x
 
 void
@@ -235,40 +239,50 @@ consoleintr(int (*getc)(void))
   }
 }
 
+// 
 int
 consoleread(struct inode *ip, char *dst, int n)
 {
   uint target;
   int c;
 
-  iunlock(ip);
-  target = n;
-  acquire(&cons.lock);
+  iunlock(ip); // inodeのロックを開放
+  target = n; // 指定された書き込み文字数
+  acquire(&cons.lock); // コンソール用のロックを取得
+
   while(n > 0){
+    // 読み込みと書き込みのインデックスが同じ場合
+    // それ以上何も入力されていないことが確実なのでスリープする
     while(input.r == input.w){
+      // カレントプロセスが既にKILLされている場合
       if(myproc()->killed){
-        release(&cons.lock);
-        ilock(ip);
+        release(&cons.lock); // コンソール用のロックを開放
+        ilock(ip); // inodeを再度ロック
         return -1;
       }
       sleep(&input.r, &cons.lock);
     }
+    
+    // 読み込み用のインデックスを用いてリングバッファからデータを読み込む
     c = input.buf[input.r++ % INPUT_BUF];
-    if(c == C('D')){  // EOF
+
+    if(c == C('D')){  // EOFの場合
       if(n < target){
-        // Save ^D for next time, to make sure
-        // caller gets a 0-byte result.
+        // インデックスを戻すことで次回のために"Ctrl+D"を保存しておく
+        // これにより呼び出し側が0バイトの結果を受け取ることが確実となる
         input.r--;
       }
       break;
     }
-    *dst++ = c;
-    --n;
+    *dst++ = c; // バッファから読んだものを書き込む
+    --n; // 指定書き込み回数をデクリメント
+
+    // 改行の場合は読み込み完了
     if(c == '\n')
       break;
   }
-  release(&cons.lock);
-  ilock(ip);
+  release(&cons.lock); // コンソール用のロックを開放
+  ilock(ip); // inodeをロック
 
   return target - n;
 }
@@ -289,7 +303,7 @@ consolewrite(struct inode *ip, char *buf, int n)
   return n;
 }
 
-// コンソールの初期化
+// コンソールの初期化及びキーボード割り込みのルーティング処理
 void
 consoleinit(void)
 {
@@ -300,6 +314,7 @@ consoleinit(void)
   devsw[CONSOLE].read = consoleread;
   cons.locking = 1;
 
+  // キーボードからの割り込みをCPUの0番にルーティングする
   ioapicenable(IRQ_KBD, 0);
 }
 

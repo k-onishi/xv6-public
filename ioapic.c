@@ -69,12 +69,15 @@ ioapicinit(void)
   }
 }
 
+// 指定の割り込みを指定のCPUにルーティングするよう設定する
 void
 ioapicenable(int irq, int cpunum)
 {
   // Mark interrupt edge-triggered, active high,
   // enabled, and routed to the given cpunum,
   // which happens to be that cpu's APIC ID.
+  // 指定された割り込みを有効にし、エッジで発行、ハイでアクティブ
+  // そして指定のCPUに対してルーティングするよう設定する
   ioapicwrite(REG_TABLE+2*irq, T_IRQ0 + irq);
   ioapicwrite(REG_TABLE+2*irq+1, cpunum << 24);
 }

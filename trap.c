@@ -9,20 +9,24 @@
 #include "spinlock.h"
 
 // Interrupt descriptor table (shared by all CPUs).
+// 割り込みディスクリプタテーブル(全てのCPUで共有される)
 struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+// 割り込み・トラップゲート及びtick割り込み用のロックの初期化
 void
 tvinit(void)
 {
   int i;
-
+  // 割り込みゲートを初期化(80)
   for(i = 0; i < 256; i++)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
+  // トラップゲートの初期化
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
 
+  // tick割り込み用ロックを初期化
   initlock(&tickslock, "time");
 }
 

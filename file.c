@@ -17,6 +17,7 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+// ファイルテーブル用ロックの初期化
 void
 fileinit(void)
 {

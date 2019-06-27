@@ -20,9 +20,11 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+// process table用のロックを初期化
 void
 pinit(void)
 {
+  // "ptable"の名前でロックを初期化
   initlock(&ptable.lock, "ptable");
 }
 

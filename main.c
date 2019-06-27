@@ -25,12 +25,12 @@ main(void)
   seginit();       // セグメントディスクリプタテーブルの設定
   picinit();       // PICの無効化
   ioapicinit();    // I/O APICお初期化
-  consoleinit();   // console hardware
-  uartinit();      // serial port
-  pinit();         // process table
-  tvinit();        // trap vectors
-  binit();         // buffer cache
-  fileinit();      // file table
+  consoleinit();   // コンソールの初期化
+  uartinit();      // UARTの初期化
+  pinit();         // プロセステーブル用のロックを初期化
+  tvinit();        // 割り込み・トラップゲート及びtick割り込み用ロックの初期化
+  binit();         // バッファキャッシュの初期化
+  fileinit();      // ファイルテーブル用ロックの初期化
   ideinit();       // disk 
   startothers();   // start other processors
   kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()

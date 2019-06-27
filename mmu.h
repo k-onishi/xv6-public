@@ -50,7 +50,7 @@ struct segdesc {
   (uint)(lim) >> 16, 0, 0, 1, 0, (uint)(base) >> 24 }
 #endif
 
-#define DPL_USER    0x3     // User DPL
+#define DPL_USER    0x3     // ユーザ権限(DPL)
 
 // アプリケーションセグメントの種類
 #define STA_X       0x8     // 実行可能
@@ -144,38 +144,38 @@ struct taskstate {
   ushort iomb;       // I/O map base address
 };
 
-// Gate descriptors for interrupts and traps
+// 割り込み及びトラップのためのゲートディスクリプタ
 struct gatedesc {
-  uint off_15_0 : 16;   // low 16 bits of offset in segment
-  uint cs : 16;         // code segment selector
-  uint args : 5;        // # args, 0 for interrupt/trap gates
-  uint rsv1 : 3;        // reserved(should be zero I guess)
-  uint type : 4;        // type(STS_{IG32,TG32})
-  uint s : 1;           // must be 0 (system)
-  uint dpl : 2;         // descriptor(meaning new) privilege level
-  uint p : 1;           // Present
-  uint off_31_16 : 16;  // high bits of offset in segment
+  uint off_15_0 : 16;   // セグメント内オフセットの下位16bit
+  uint cs : 16;         // コードセグメントセレクタ
+  uint args : 5;        // # args, 0 == 割り込み/トラップゲート
+  uint rsv1 : 3;        // 予約済(おそらく0)
+  uint type : 4;        // タイプ(STS_{IG32,TG32})
+  uint s : 1;           // 0でなければならない(system)
+  uint dpl : 2;         // descriptor privilege level
+  uint p : 1;           // 存在しているか
+  uint off_31_16 : 16;  // セグメント内オフセットの上位16bit
 };
 
-// Set up a normal interrupt/trap gate descriptor.
-// - istrap: 1 for a trap (= exception) gate, 0 for an interrupt gate.
-//   interrupt gate clears FL_IF, trap gate leaves FL_IF alone
-// - sel: Code segment selector for interrupt/trap handler
-// - off: Offset in code segment for interrupt/trap handler
-// - dpl: Descriptor Privilege Level -
-//        the privilege level required for software to invoke
-//        this interrupt/trap gate explicitly using an int instruction.
-#define SETGATE(gate, istrap, sel, off, d)                \
-{                                                         \
-  (gate).off_15_0 = (uint)(off) & 0xffff;                \
-  (gate).cs = (sel);                                      \
-  (gate).args = 0;                                        \
-  (gate).rsv1 = 0;                                        \
-  (gate).type = (istrap) ? STS_TG32 : STS_IG32;           \
-  (gate).s = 0;                                           \
-  (gate).dpl = (d);                                       \
-  (gate).p = 1;                                           \
-  (gate).off_31_16 = (uint)(off) >> 16;                  \
+// 一般的な割り込み・トラップゲートのセットアップ
+// - istrap: 1: トラップ(例外)ゲート, 0: 割り込みゲート.
+//   割り込みゲートは"FL_IF"をクリアする, トラップゲートは"FL_IF"を残す
+// - sel: 割り込み/トラップハンドラのためのコードセグメントセレクタ
+// - off: 割り込み/トラップハンドラのためのコードセグメントのオフセット
+// - dpl: DPL(Descriptor Privilege Level)
+//        権限レベルは明示的に"int"命令を用いて割り込み/トラップゲートを
+//        使用する際に必要となる。
+#define SETGATE(gate, istrap, sel, off, d) \
+{ \
+  (gate).off_15_0 = (uint)(off) & 0xffff; \
+  (gate).cs = (sel); \
+  (gate).args = 0; \
+  (gate).rsv1 = 0; \
+  (gate).type = (istrap) ? STS_TG32 : STS_IG32; \
+  (gate).s = 0; \
+  (gate).dpl = (d); \
+  (gate).p = 1; \
+  (gate).off_31_16 = (uint)(off) >> 16; \
 }
 
 #endif
