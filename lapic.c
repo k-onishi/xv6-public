@@ -19,8 +19,8 @@
 #define SVR     (0x00F0/4)   // 仮の割り込みベクタ
   #define ENABLE     0x00000100   // Unit Enable
 #define ESR     (0x0280/4)   // エラーステータス
-#define ICRLO   (0x0300/4)   // Interrupt Command
-  #define INIT       0x00000500   // INIT/RESET
+#define ICRLO   (0x0300/4)   // 割り込みコマンド
+  #define INIT       0x00000500   // 初期化/リセット
   #define STARTUP    0x00000600   // IPI(Inter-Processor Interrupt)の起動
   #define DELIVS     0x00001000   // Delivery status
   #define ASSERT     0x00004000   // Assert interrupt (vs deassert)
@@ -29,7 +29,7 @@
   #define BCAST      0x00080000   // Send to all APICs, including self.
   #define BUSY       0x00001000
   #define FIXED      0x00000000
-#define ICRHI   (0x0310/4)   // Interrupt Command [63:32]
+#define ICRHI   (0x0310/4)   // 割り込みコマンド [63:32]
 #define TIMER   (0x0320/4)   // Local Vector Table 0 (TIMER)
   #define X1         0x0000000B   // カウンタを1で割る
   #define PERIODIC   0x00020000   // 定期的に
@@ -52,6 +52,7 @@ lapicw(int index, int value)
   lapic[ID];  // 読み込むことで書き込み完了を待つ
 }
 
+// APICのセットアップ
 void
 lapicinit(void)
 {
@@ -93,7 +94,6 @@ lapicinit(void)
   while(lapic[ICRLO] & DELIVS)
     ;
 
-  // Enable interrupts on the APIC (but not on the processor).
   // APICに対する割り込みを有効化する(CPUに対してではなく)
   lapicw(TPR, 0);
 }
@@ -125,36 +125,41 @@ microdelay(int us)
 #define CMOS_PORT    0x70
 #define CMOS_RETURN  0x71
 
-// Start additional processor running entry code at addr.
-// See Appendix B of MultiProcessor Specification.
+// "addr"で指定したエントリコードからAP(apicid)を起動する
+// 詳細: Appendix B of MultiProcessor Specification.
 void
 lapicstartap(uchar apicid, uint addr)
 {
   int i;
   ushort *wrv;
 
-  // "The BSP must initialize CMOS shutdown code to 0AH
-  // and the warm reset vector (DWORD based at 40:67) to point at
-  // the AP startup code prior to the [universal startup algorithm]."
-  outb(CMOS_PORT, 0xF);  // offset 0xF is shutdown code
-  outb(CMOS_PORT+1, 0x0A);
-  wrv = (ushort*)P2V((0x40<<4 | 0x67));  // Warm reset vector
+  // ブートストラッププロセッサはCMOSをシャットダウンコード(0A)及び
+  // APのスタートアップコード指しているリセットベクタ(DWORD based at 40:67)
+  // を初期化する。
+
+  // http://helppc.netcore2k.net/hardware/cmos-clock
+  outb(CMOS_PORT, 0xF);  // 0x0F: Shutdown status byte
+  outb(CMOS_PORT+1, 0x0A); // JMP DWORD request without INT init
+
+  wrv = (ushort*)P2V((0x40<<4 | 0x67));  // リセットベクタを指す
+  // リセットベクタに対してアドレス値を設定する
   wrv[0] = 0;
   wrv[1] = addr >> 4;
 
   // "Universal startup algorithm."
-  // Send INIT (level-triggered) interrupt to reset other CPU.
+  // 他のCPUをリセットするため初期化割り込みを送信する。
   lapicw(ICRHI, apicid<<24);
   lapicw(ICRLO, INIT | LEVEL | ASSERT);
   microdelay(200);
   lapicw(ICRLO, INIT | LEVEL);
-  microdelay(100);    // should be 10ms, but too slow in Bochs!
+  microdelay(100);    // 10ミリ秒である必要がある,Bochsでは遅すぎる
 
-  // Send startup IPI (twice!) to enter code.
-  // Regular hardware is supposed to only accept a STARTUP
-  // when it is in the halted state due to an INIT.  So the second
-  // should be ignored, but it is part of the official Intel algorithm.
-  // Bochs complains about the second one.  Too bad for Bochs.
+  // コードを実行するため起動のIPIを2回送信する。
+  // 一般的なハードウェアは停止状態の時にのみ起動コードを受け付ける。
+  // それゆえ２回目の起動コードは無視される、しかしこれが
+  // Intelの公式アルゴリズムの一部で使用されている。
+
+  // 2回目を送信
   for(i = 0; i < 2; i++){
     lapicw(ICRHI, apicid<<24);
     lapicw(ICRLO, STARTUP | (addr>>12));

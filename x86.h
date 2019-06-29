@@ -93,15 +93,21 @@ lgdt(struct segdesc *p, int size)
 
 struct gatedesc;
 
+// LIDT(Load Interrupt Descriptor Table)命令でIDTR(Interrupt Descriptor Table Register)に
+// IDT(Interrupt Descriptor Table)のサイズ及びアドレスを設定する
+// http://softwaretechnique.jp/OS_Development/kernel_development02.html
 static inline void
 lidt(struct gatedesc *p, int size)
 {
   volatile ushort pd[3];
 
-  pd[0] = size-1;
+  pd[0] = size-1; // サイズ
+
+  // アドレスを16bitずつ代入
   pd[1] = (uint)p;
   pd[2] = (uint)p >> 16;
 
+  // 設定
   asm volatile("lidt (%0)" : : "r" (pd));
 }
 

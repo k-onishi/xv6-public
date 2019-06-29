@@ -29,7 +29,7 @@ struct context {
 
 // プロセスの状態
 // UNUSED: 使用されていない
-// EMBRYO: 
+// EMBRYO: ??
 // SLEEPING: スリープ
 // RUNNABLE: 待ち(動作可能)
 // RUNNING: 動作中

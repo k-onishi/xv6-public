@@ -38,6 +38,7 @@ kinit1(void *vstart, void *vend)
   freerange(vstart, vend); // アドレスで指定したメモリの範囲を初期化する
 }
 
+// 指定範囲のメモリ領域をクリアする
 void
 kinit2(void *vstart, void *vend)
 {

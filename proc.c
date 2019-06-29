@@ -14,7 +14,7 @@ struct {
 
 static struct proc *initproc;
 
-int nextpid = 1;
+int nextpid = 1; // 次に生成したプロセスに割り当てるPID
 extern void forkret(void);
 extern void trapret(void);
 
@@ -71,35 +71,40 @@ struct proc* myproc(void) {
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
-// If found, change state to EMBRYO and initialize
-// state required to run in the kernel.
-// Otherwise return 0.
+// 使用していないprocをプロセステーブルから探す。
+// もしあればステータスを"EMBRYO"に変更し、
+// カーネル内で実行するためステータスを初期化する。
+// それ以外では0を返す。
 static struct proc*
 allocproc(void)
 {
   struct proc *p;
   char *sp;
 
-  acquire(&ptable.lock);
+  acquire(&ptable.lock); // ページテーブルをロック
 
+  // プロセステーブルをトラバースしステータスが"UNUSED"のプロセスを見つける。
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
       goto found;
 
-  release(&ptable.lock);
+  release(&ptable.lock); // ページテーブルをアンロック
   return 0;
 
-found:
-  p->state = EMBRYO;
-  p->pid = nextpid++;
+found: // プロセスを見つられれば
 
-  release(&ptable.lock);
+  p->state = EMBRYO; // ??
+  p->pid = nextpid++; // PIDの割り当て
 
-  // Allocate kernel stack.
+  release(&ptable.lock); // ページテーブルのロック
+
+  // カーネルスタックの確保
   if((p->kstack = kalloc()) == 0){
     p->state = UNUSED;
     return 0;
   }
+
+  // 確保したカーネルスタックのアドレスにスタックサイズを加算する
   sp = p->kstack + KSTACKSIZE;
 
   // Leave room for trap frame.
@@ -120,7 +125,7 @@ found:
 }
 
 //PAGEBREAK: 32
-// Set up first user process.
+// 最初のユーザプロセスをセットアップする
 void
 userinit(void)
 {

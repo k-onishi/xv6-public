@@ -30,6 +30,7 @@ tvinit(void)
   initlock(&tickslock, "time");
 }
 
+// IDTを設定する
 void
 idtinit(void)
 {

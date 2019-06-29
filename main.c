@@ -31,36 +31,39 @@ main(void)
   tvinit();        // 割り込み・トラップゲート及びtick割り込み用ロックの初期化
   binit();         // バッファキャッシュの初期化
   fileinit();      // ファイルテーブル用ロックの初期化
-  ideinit();       // disk 
-  startothers();   // start other processors
-  kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
-  userinit();      // first user process
+  ideinit();       // IDE用のロック変数及びSlaveドライブの存在確認
+  startothers();   // 他のCPUを起動する
+  kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // startothers()の後に呼び出す必要がある
+  userinit();      // 最初のユーザプロセス
   mpmain();        // finish this processor's setup
 }
 
-// Other CPUs jump here from entryother.S.
+// APはentryother.Sからここにジャンプする
 static void
 mpenter(void)
 {
-  switchkvm();
-  seginit();
-  lapicinit();
+  switchkvm(); // カーネル専用のページテーブルを設定
+  seginit(); // セグメントディスクリプタをセットアップ
+  lapicinit(); // APICのセットアップ
   mpmain();
 }
 
-// Common CPU setup code.
+// 一般的なCPUのセットアップのためのコード
 static void
 mpmain(void)
 {
+  // コンソールにCPUが起動することを表示
   cprintf("cpu%d: starting %d\n", cpuid(), cpuid());
-  idtinit();       // load idt register
-  xchg(&(mycpu()->started), 1); // tell startothers() we're up
-  scheduler();     // start running processes
+  idtinit();       // IDTを設定する
+  
+  // startothers()関数に対して当該CPUが起動したことを知らせる
+  xchg(&(mycpu()->started), 1);
+  scheduler(); // プロセスの起動を開始する
 }
 
 pde_t entrypgdir[];  // For entry.S
 
-// Start the non-boot (AP) processors.
+// ブートプロセッサー(Boot Processor: BP)以外のアプリケーションプロセッサ(Application Processor: AP)を起動する
 static void
 startothers(void)
 {
@@ -69,27 +72,28 @@ startothers(void)
   struct cpu *c;
   char *stack;
 
-  // Write entry code to unused memory at 0x7000.
-  // The linker has placed the image of entryother.S in
-  // _binary_entryother_start.
-  code = P2V(0x7000);
+  // エントリのコードを使用していないメモリである0x7000に書き込む
+  // リンカがentryother.Sのコードを_binary_entryother_startに配置する
+  code = P2V(0x7000); // 仮想アドレスに変換
+  // entryother.Sのコードを配置
   memmove(code, _binary_entryother_start, (uint)_binary_entryother_size);
 
   for(c = cpus; c < cpus+ncpu; c++){
-    if(c == mycpu())  // We've started already.
+    if(c == mycpu()) // ブートプロセッサは既に起動しているためスキップ
       continue;
 
-    // Tell entryother.S what stack to use, where to enter, and what
-    // pgdir to use. We cannot use kpgdir yet, because the AP processor
-    // is running in low  memory, so we use entrypgdir for the APs too.
-    stack = kalloc();
-    *(void**)(code-4) = stack + KSTACKSIZE;
-    *(void(**)(void))(code-8) = mpenter;
-    *(int**)(code-12) = (void *) V2P(entrypgdir);
+    // entryother.Sにどのスタックを使用するか、どこからスタートするか
+    // そしてどのページディレクトリを使用するかを指定する。低いメモリで動作しているため
+    // まだページディレクトリは使用できないので、"entrypgdir"をAPでも使用する。
+    stack = kalloc(); // スタックを確保
+    *(void**)(code-4) = stack + KSTACKSIZE; // スタック
+    *(void(**)(void))(code-8) = mpenter; // エントリポイント
+    *(int**)(code-12) = (void *) V2P(entrypgdir); // ページディスクリプタテーブル
 
+    // APを起動する
     lapicstartap(c->apicid, V2P(code));
 
-    // wait for cpu to finish mpmain()
+    // APのmpmain()の完了を待つ
     while(c->started == 0)
       ;
   }

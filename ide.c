@@ -53,25 +53,33 @@ idewait(int checkerr)
   return 0;
 }
 
+// IDE用のロック変数の初期化及びSlaveドライブの存在を確認
 void
 ideinit(void)
 {
   int i;
 
+  // IDE用のロック変数を初期化
   initlock(&idelock, "ide");
-  ioapicenable(IRQ_IDE, ncpu - 1);
-  idewait(0);
 
-  // Check if disk 1 is present
-  outb(0x1f6, 0xe0 | (1<<4));
-  for(i=0; i<1000; i++){
-    if(inb(0x1f7) != 0){
+  // IDEの割り込みを一番大きい番号のCPUに割り当て
+  ioapicenable(IRQ_IDE, ncpu - 1);
+  
+  idewait(0); // エラーチェックなしでディスクの状態がDRIVE READYになるまで待機
+
+  // IDENTIFY command
+  // "IDENTIFY"コマンド(0xEC)をコマンドI/Oポート(0x1F7)に送信し
+  // ステータスポート(0x1F7)から再度値を読み込む
+  // 値が0ならドライブは存在しない
+  outb(0x1f6, 0xe0 | (1<<4)); // Slaveのドライブの存在を確認する
+  for(i=0; i<1000; i++){ // おそらく値が反映されるまでの時間がかかるため(知らんけどよくあるやん)
+    if(inb(0x1f7) != 0){ // 存在する場合
       havedisk1 = 1;
       break;
     }
   }
 
-  // Switch back to disk 0.
+  // Masterのドライブに値を戻す
   outb(0x1f6, 0xe0 | (0<<4));
 }
 

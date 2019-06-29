@@ -8,15 +8,12 @@
 # よってこのコードは4096バイトの境界上で起動する。
 
 # ココのコードがDSに0をセットするため、下位16バイトのアドレスに収まる。
-# Startothers(main.c)は”STARTUP"を1つずつ送信し、
+# Startothers(main.c)は”STARTUP"を1つずつ送信する。
+# このコードを0x7000にコピーする。プロセッサ毎に新たに割り当てられた
+# スタックのアドレス(start-4)、mpenterにジャンプするために割り当てたられたアドレス(start-8)
+# そしてentrypgdirの物理アドレス(start-12)が配置される。
 
-# Startothers (in main.c) sends the STARTUPs one at a time.
-# It copies this code (start) at 0x7000.  It puts the address of
-# a newly allocated per-core stack in start-4,the address of the
-# place to jump to (mpenter) in start-8, and the physical address
-# of entrypgdir in start-12.
-#
-# This code combines elements of bootasm.S and entry.S.
+# このコードはbootasm.Sとentry.Sの要素を組み合わせたものである。
 
 .code16           
 .globl start
