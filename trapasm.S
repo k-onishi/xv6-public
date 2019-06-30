@@ -20,10 +20,10 @@ alltraps:
   call trap
   addl $4, %esp
 
-  # Return falls through to trapret...
+  # これを通ってtrapretに戻る
 .globl trapret
 trapret:
-  popal
+  popal #
   popl %gs
   popl %fs
   popl %es

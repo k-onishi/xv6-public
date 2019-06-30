@@ -12,6 +12,7 @@ struct {
   struct proc proc[NPROC]; // システム上で生成可能なプロセス数分のプロセス構造体変数
 } ptable; // Process Table ??
 
+// initプロセス
 static struct proc *initproc;
 
 int nextpid = 1; // 次に生成したプロセスに割り当てるPID
@@ -104,24 +105,27 @@ found: // プロセスを見つられれば
     return 0;
   }
 
-  // 確保したカーネルスタックのアドレスにスタックサイズを加算する
+  // 確保したカーネルスタックのアドレスにスタックサイズを加算することで上位あどれす
   sp = p->kstack + KSTACKSIZE;
 
-  // Leave room for trap frame.
+  // トラップフレーム分のスペースを確保する
   sp -= sizeof *p->tf;
-  p->tf = (struct trapframe*)sp;
+  p->tf = (struct trapframe*)sp; // スタックの底に
 
-  // Set up new context to start executing at forkret,
-  // which returns to trapret.
+  // trapret()を返すforkret()で実行を開始するために
+  // 新たなコンテキストをセットアップする
   sp -= 4;
-  *(uint*)sp = (uint)trapret;
+  *(uint*)sp = (uint)trapret; // trapasm.Sのtrap:のアドレス
 
+  // コンテキスト情報を保存するための空間
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
+
+  // コンテキスト情報を0クリア
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  return p;
+  return p; // プロセスディスクリプタを返す
 }
 
 //PAGEBREAK: 32
@@ -132,22 +136,28 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
-  p = allocproc();
+  p = allocproc(); // プロセスを割り当てる
+  initproc = p; // initプロセスとして設定
   
-  initproc = p;
+  // ページディデレクトリを初期化
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
+  
+  // initのコードを指定したページディデレクトリに確保したページフレームにコピーする
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE;
+  p->sz = PGSIZE; // 確保したページフレームサイズをプロセスサイズに
   memset(p->tf, 0, sizeof(*p->tf));
+
+  // 各レジスタに適当な値を設定
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
-  p->tf->eip = 0;  // beginning of initcode.S
+  p->tf->eip = 0;  // initcode.Sの先頭
 
+  // プロセス名に"initcode"を設定
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 

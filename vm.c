@@ -212,18 +212,27 @@ switchuvm(struct proc *p)
   popcli();
 }
 
-// Load the initcode into address 0 of pgdir.
-// sz must be less than a page.
+// 初期化コードをページディレクトリのアドレス0にロードする
+// "sz"はpageサイズより小さくなければならない
 void
 inituvm(pde_t *pgdir, char *init, uint sz)
 {
   char *mem;
 
+  // "sz"がページサイズ
   if(sz >= PGSIZE)
     panic("inituvm: more than a page");
+  
+  // ページフレームを割り当てる
   mem = kalloc();
+  
+  // 確保したメモリフレームを0クリアする
   memset(mem, 0, PGSIZE);
+
+  // ページに対応するPTEを作成する
   mappages(pgdir, 0, PGSIZE, V2P(mem), PTE_W|PTE_U);
+  
+  // initから確保したページにinitのコードをコピーする
   memmove(mem, init, sz);
 }
 

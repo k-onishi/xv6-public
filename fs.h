@@ -2,7 +2,7 @@
 // Both the kernel and user programs use this header file.
 
 
-#define ROOTINO 1  // root i-number
+#define ROOTINO 1  // ルートディレクトリのinode番号
 #define BSIZE 512  // ブロックのサイズ
 
 // ディスクのレイアウト:
@@ -47,7 +47,7 @@ struct dinode {
 // Block of free map containing bit for block b
 #define BBLOCK(b, sb) (b/BPB + sb.bmapstart)
 
-// Directory is a file containing a sequence of dirent structures.
+// ディレクトリは連続するdirent構造体のシーケンスを保持するファイル
 #define DIRSIZ 14
 
 struct dirent {

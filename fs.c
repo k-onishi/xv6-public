@@ -634,15 +634,17 @@ skipelem(char *path, char *name)
   return path;
 }
 
-// Look up and return the inode for a path name.
-// If parent != 0, return the inode for the parent and copy the final
-// path element into name, which must have room for DIRSIZ bytes.
-// Must be called inside a transaction since it calls iput().
+// パスに対応するinodeを探し、それを返す。
+// もしparentが0でなければ、parentのinodeを返し、
+// 最後のパスを"name"にコピーする
+// iput()関数を呼び出すため、この関数はトランザクション内で呼び出され
+// なければならない。
 static struct inode*
 namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
 
+  // ルートディレクトリである場合
   if(*path == '/')
     ip = iget(ROOTDEV, ROOTINO);
   else
@@ -673,6 +675,7 @@ namex(char *path, int nameiparent, char *name)
   return ip;
 }
 
+// 
 struct inode*
 namei(char *path)
 {
