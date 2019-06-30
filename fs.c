@@ -165,6 +165,7 @@ bfree(int dev, uint b)
 // dev, and inum.  One must hold ip->lock in order to
 // read or write that inode's ip->valid, ip->size, ip->type, &c.
 
+// inode用のキャッシュ
 struct {
   struct spinlock lock;
   struct inode inode[NINODE];
@@ -237,51 +238,55 @@ iupdate(struct inode *ip)
   brelse(bp);
 }
 
-// Find the inode with number inum on device dev
-// and return the in-memory copy. Does not lock
-// the inode and does not read it from disk.
+// "dev"で指定されたデバイスの"inum"で指定されたinode
+// を見つける。そしてメモリ上にコピーし、それを返す。
+// inodeはロックせず、ディスクからも読み込む必要もない。
 static struct inode*
 iget(uint dev, uint inum)
 {
   struct inode *ip, *empty;
 
-  acquire(&icache.lock);
+  acquire(&icache.lock); // inodeのキャッシュ用ロックを取得
 
-  // Is the inode already cached?
+  // そのinodeが既にキャッシュされているか
   empty = 0;
+  // inodeのキャッシュをトラバース
   for(ip = &icache.inode[0]; ip < &icache.inode[NINODE]; ip++){
+    // 参照されており、デバイス番号及びinode番号が一致すれば、そのinodeを返す
     if(ip->ref > 0 && ip->dev == dev && ip->inum == inum){
-      ip->ref++;
-      release(&icache.lock);
-      return ip;
+      ip->ref++; // 参照カウンタをインクリメント
+      release(&icache.lock); // キャッシュのロックを開放
+      return ip; // 発見したinodeを返す
     }
-    if(empty == 0 && ip->ref == 0)    // Remember empty slot.
+    if(empty == 0 && ip->ref == 0)    // キャッシュ内の空のエントリを記録
       empty = ip;
   }
 
-  // Recycle an inode cache entry.
+  // inodeのキャッシュエントリをリサイクル
   if(empty == 0)
     panic("iget: no inodes");
 
+  // inodeに必要な情報を設定
   ip = empty;
   ip->dev = dev;
   ip->inum = inum;
   ip->ref = 1;
   ip->valid = 0;
-  release(&icache.lock);
+  release(&icache.lock); // ロックを開放
 
-  return ip;
+  return ip; // inodeを返す
 }
 
 // Increment reference count for ip.
-// Returns ip to enable ip = idup(ip1) idiom.
+// inodeの参照カウンタをインクリメント
+// inodeを有効なinodeとして返す
 struct inode*
 idup(struct inode *ip)
 {
-  acquire(&icache.lock);
-  ip->ref++;
-  release(&icache.lock);
-  return ip;
+  acquire(&icache.lock); // キャッシュのロックを取得
+  ip->ref++; // inodeの参照数(カウンタ)をインクリメント
+  release(&icache.lock); // ロックを開放
+  return ip; // inodeを返す
 }
 
 // 指定されたinodeをロックする。
@@ -595,20 +600,15 @@ dirlink(struct inode *dp, char *name, uint inum)
 }
 
 //PAGEBREAK!
-// Paths
-
-// Copy the next path element from path into name.
-// Return a pointer to the element following the copied one.
-// The returned path has no leading slashes,
-// so the caller can check *path=='\0' to see if the name is the last one.
-// If no name to remove, return 0.
+// パス内の一番上位にある要素を"name"に設定し、戻り地はその要素を除外したパスとなる
+// 戻り値のパスの最初のスラッシュは削除される
+// もしどの要素も削除しなかった場合は0を返す
 //
-// Examples:
+// e.g.
 //   skipelem("a/bb/c", name) = "bb/c", setting name = "a"
 //   skipelem("///a//bb", name) = "bb", setting name = "a"
 //   skipelem("a", name) = "", setting name = "a"
 //   skipelem("", name) = skipelem("////", name) = 0
-//
 static char*
 skipelem(char *path, char *name)
 {
@@ -646,9 +646,10 @@ namex(char *path, int nameiparent, char *name)
 
   // ルートディレクトリである場合
   if(*path == '/')
-    ip = iget(ROOTDEV, ROOTINO);
+    ip = iget(ROOTDEV, ROOTINO); // 対応するinodeを取得
   else
-    ip = idup(myproc()->cwd);
+    ip = idup(myproc()->cwd); // 参照カウンタをインクリメントするだけ
+
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
